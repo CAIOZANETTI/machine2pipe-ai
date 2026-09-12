@@ -4,6 +4,14 @@
 
 Built by **Caio Zanetti / Ctrl+Alt+Construct** for the AI Tinkerers **Agents, Everywhere** hackathon.
 
+## Demo assets
+
+- **Real 2022 telemetry:** [gps_maquina](https://github.com/CAIOZANETTI/gps_maquina)
+- **Construction photo album:** [ait_machine2pipe-ai — Google Photos](https://photos.app.goo.gl/Bw5BuCvfpGf4eskXA)
+- **Georeferenced pipe project:** [calmon_jit_machine2pipe-ai — Google Earth](https://earth.google.com/earth/d/1AxktfRe0YqqKtn-7T0XMgNEnYQQTGYa8?usp=sharing)
+
+The public links provide visual traceability for the demo. Runtime processing uses the original Parquet file, original photo files, and an exported KML/KMZ file rather than scraping the shared pages.
+
 ## Objective
 
 Machine2Pipe AI answers four practical questions:
@@ -56,7 +64,9 @@ The first development task is to validate the real Parquet schema before fixing 
 
 ### 2. Pipe project in KML/KMZ
 
-The demo project will be drawn in Google Earth and uploaded to the application.
+Public visualization: [calmon_jit_machine2pipe-ai — Google Earth](https://earth.google.com/earth/d/1AxktfRe0YqqKtn-7T0XMgNEnYQQTGYa8?usp=sharing)
+
+The demo project is drawn in Google Earth and exported as KML/KMZ for processing.
 
 Supported geometry:
 
@@ -90,7 +100,7 @@ These values provide context only. They are not survey-grade elevation or an on-
 
 ### 4. Field photos
 
-Source album: [2022 construction photos](https://photos.app.goo.gl/Bw5BuCvfpGf4eskXA)
+Source album: [ait_machine2pipe-ai — 2022 construction photos](https://photos.app.goo.gl/Bw5BuCvfpGf4eskXA)
 
 In operation, users send original photos to the Telegram bot. The system extracts capture time and GPS when available, matches the photo to the nearest project segment and telemetry window, and classifies it as:
 
@@ -420,6 +430,6 @@ This hackathon project builds on public work created by Caio Zanetti:
 - [gps_maquina](https://github.com/CAIOZANETTI/gps_maquina) — real JCB 3CX telemetry and operational analysis from 2022.
 - [kml_saneamento](https://github.com/CAIOZANETTI/kml_saneamento) — KML sanitation-network parsing and QA/QC.
 - [kml-earthworks](https://github.com/CAIOZANETTI/kml-earthworks) — alignment, chainage, elevation, and terrain profiles.
-- [kml_poligono](https://github.com/CAIOZANETTI/kml_poligono) — polygon and earthworks geospatial analysis.
+- [kml_poligono](https://github.com/CAIOZANETTI/kml_poligono) — polygon and_PAD — polygon and earthworks geospatial analysis.
 
 The agent, Telegram workflow, telemetry-to-project matching, and confirmation loop are new work for Machine2Pipe AI.
