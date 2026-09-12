@@ -56,3 +56,16 @@ and finding 1 is the one that matters.
 the correct instruction: Telegram strips EXIF from images sent as photos. It also pairs
 well with matching by capture time, so a photo with no GPS still lands on the right
 segment — the metadata is a bonus, not a dependency.
+
+### 4. A non-numeric `TELEGRAM_CHAT_ID` crashes the worker — **open**
+
+`parse_chat_allowlist` calls `int()` on every entry, so a value that is not a number raises
+`ValueError` inside `main()` before polling starts. The operator error this invites is
+specific and was made in practice: putting the bot's username there instead of the numeric
+chat id. With the worker supervised, the process now crash-loops every five seconds and the
+only symptom is in the logs.
+
+Catching the parse and logging `TELEGRAM_CHAT_ID inválido: esperado número do chat, não nome
+do bot` — then continuing with an empty allowlist — turns a crash loop into one clear line.
+`/health` now reports `telegram_allowlist_valid` so the mistake is visible from the browser,
+but the worker should not die over it.

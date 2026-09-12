@@ -85,6 +85,13 @@ def health() -> dict[str, object]:
             "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "")[:7] or None,
             "branch": os.getenv("RAILWAY_GIT_BRANCH"),
         },
+        # TELEGRAM_CHAT_ID e o numero do chat, nao o nome do bot. Um valor nao numerico
+        # derruba o worker ao montar a allowlist, e o sintoma so aparece nos logs.
+        "telegram_allowlist_valid": all(
+            parte.strip().lstrip("-").isdigit()
+            for parte in config.telegram_chat_id.split(",")
+            if parte.strip()
+        ),
         "variables_present": [nome for nome in esperadas if os.getenv(nome)],
         "variables_missing": [nome for nome in esperadas if not os.getenv(nome)],
         "telegram_token_configured": bool(config.telegram_bot_token),

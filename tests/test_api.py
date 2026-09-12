@@ -56,3 +56,16 @@ def test_fotos_so_aparecem_depois_de_capturadas(cliente):
 
 def test_foto_inexistente_falha_visivelmente(cliente):
     assert cliente.get("/api/photo/album_00000000_000000").status_code == 404
+
+
+def test_health_denuncia_chat_id_nao_numerico(cliente, monkeypatch):
+    from machine2pipe import api
+
+    monkeypatch.setattr(api.config, "telegram_chat_id", "machine2pipe_ai_bot")
+    assert cliente.get("/health").json()["telegram_allowlist_valid"] is False
+
+    monkeypatch.setattr(api.config, "telegram_chat_id", "123456789, -100200300")
+    assert cliente.get("/health").json()["telegram_allowlist_valid"] is True
+
+    monkeypatch.setattr(api.config, "telegram_chat_id", "")
+    assert cliente.get("/health").json()["telegram_allowlist_valid"] is True
