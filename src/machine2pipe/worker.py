@@ -237,6 +237,7 @@ class FieldAgent:
             source="telegram",
             visual_class=leitura.visual_class,
             confidence=leitura.confidence,
+            visual_summary=leitura.summary if leitura.classified else None,
         )
         storage.record_photo(registro)
         log.info(

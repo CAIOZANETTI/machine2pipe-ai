@@ -90,6 +90,22 @@ POST /api/replay/start|pause|reset
 POST /api/replay/jump/{event_id}
 ```
 
+## Driving the demo without waiting
+
+At 60× the morning takes seven real minutes before anything happens, and a presentation
+cannot wait. The panel now offers the day's moments as shortcuts: a strip under the
+progress bar with every event that speaks (⏳ ⚠ ◌) and every photo (📷), each a click
+away; every event in the timeline and every photo in the gallery is clickable too, and
+the clock lands on that instant with the machine where it was. ⏭ jumps to the next event,
+⏩ to the end of the day, and the speed selector offers 60×, 180× and 600×. Under the hood
+it is `POST /api/replay/seek?at=<instant>`.
+
+The agent is no longer invisible on the panel: the conversation card says which model is
+behind it and what it does and does not do, and every photo without a reading has a
+**🔎 Ler com o modelo** button that runs the vision reading live (`POST
+/api/photo/{id}/read`) and shows class, confidence and one sentence — the way to test the
+AI in front of an audience.
+
 ## The reading Caio asked for
 
 The KML support points now drive a deterministic behaviour reading (`activity.py`): each

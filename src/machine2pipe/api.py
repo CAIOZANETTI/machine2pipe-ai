@@ -16,7 +16,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from machine2pipe import activity, events, llm, replay, storage, weather
+from machine2pipe import activity, events, llm, replay, storage, vision, weather
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -283,6 +283,7 @@ def state() -> JSONResponse:
     )
 
     photos = storage.photos_frame()
+    todas = photos
     if not photos.empty:
         capturadas = pd.to_datetime(photos.captured_at, format="ISO8601", utc=True)
         photos = photos[capturadas <= now.tz_convert("UTC")]
@@ -335,6 +336,16 @@ def state() -> JSONResponse:
             "weather": _weather().to_dict() if _weather().available else None,
             "photos": photos.to_dict("records") if not photos.empty else [],
             "agent": _agent_trace(),
+            # O dia inteiro, para o painel oferecer os pontos onde algo acontece como
+            # atalhos de tempo. Sem isso, esperar das 05:21 as 12:59 a 60x sao sete minutos.
+            "all_events": [
+                {"event_id": e.event_id, "event_type": e.event_type, "timestamp": e.timestamp.isoformat(),
+                 "segment_id": e.segment_id}
+                for e in detected
+            ],
+            "all_photos": (
+                todas[["photo_id", "captured_at"]].to_dict("records") if not todas.empty else []
+            ),
             # O que a maquina estava fazendo ate agora, com as fotos presas ao episodio em
             # que foram tiradas. E a leitura que o Python faz antes de o agente perguntar.
             "activity": activity.summary(
@@ -358,6 +369,10 @@ def _agent_trace() -> dict:
         faladas = faladas.where(pd.notna(faladas), None).to_dict("records")
     confirmacoes = storage.confirmations_frame()
     return {
+        # O que esta por tras das decisoes, para o painel dizer em vez de esconder.
+        "model": config.llm_model,
+        "provider": config.llm_provider,
+        "model_available": llm.available(),
         "actions": faladas,
         "confirmations": (
             confirmacoes.where(pd.notna(confirmacoes), None).to_dict("records")
@@ -392,6 +407,25 @@ def pending() -> JSONResponse:
                          "events": frame.to_dict("records")})
 
 
+@app.post("/api/replay/seek")
+def seek(at: str) -> dict:
+    """Leva o relogio a qualquer instante do dia. E o clique na foto ou no evento.
+
+    Esperar das 05:21 ate as 12:59 a 60x sao sete minutos reais; numa apresentacao isso
+    nao existe. O instante e preso a jornada, entao nao ha como pular para fora do dia.
+    """
+    _, matched, _ = _day()
+    inicio, fim = matched.timestamp.iloc[0], matched.timestamp.iloc[-1]
+    try:
+        alvo = pd.Timestamp(at)
+    except (ValueError, TypeError):
+        raise HTTPException(400, f"instante invalido: {at!r}")
+    if alvo.tzinfo is None:
+        alvo = alvo.tz_localize(config.timezone)
+    alvo = min(max(alvo, inicio), fim)
+    return {"replay": replay.jump_to(alvo, inicio).__dict__, "simulated_time": alvo.isoformat()}
+
+
 @app.post("/api/replay/{action}")
 def control(action: str, speed: float | None = None) -> dict:
     actions = {"start": replay.start, "pause": replay.pause, "reset": replay.reset}
@@ -402,6 +436,48 @@ def control(action: str, speed: float | None = None) -> dict:
     if action not in actions:
         raise HTTPException(404, f"acao desconhecida: {action}")
     return {"replay": actions[action]().__dict__}
+
+
+@app.post("/api/photo/{photo_id}/read")
+def read_photo(photo_id: str) -> dict:
+    """Pede ao modelo de visao a leitura de uma foto ja arquivada e grava o resultado.
+
+    E o botao "ler com o modelo" do painel: mostra ao vivo o que a IA faz com a evidencia
+    — classe, confianca e uma frase — e o que ela nao faz: nenhum campo para metros.
+    """
+    frame = storage.photos_frame()
+    linha = frame[frame.photo_id == photo_id] if not frame.empty else frame
+    if linha.empty or not linha.iloc[0].file_path:
+        raise HTTPException(404, f"foto desconhecida: {photo_id}")
+    foto = linha.iloc[0]
+    caminho = Path(foto.file_path)
+    if not caminho.exists():
+        raise HTTPException(404, f"arquivo ausente: {caminho.name}")
+    if not llm.available():
+        raise HTTPException(503, "sem chave de modelo no container: defina OPENROUTER_API_KEY")
+
+    contexto = (
+        f"Maquina {config.machine_id} em {foto.segment_id or 'fora do corredor'}"
+        + (f", estaca {float(foto.chainage_m):.0f} m" if pd.notna(foto.chainage_m) else "")
+        + f", as {str(foto.captured_at)[11:16]} de {config.replay_date}."
+    )
+    leitura = vision.classify(caminho, context=contexto)
+    if not leitura.classified:
+        raise HTTPException(502, leitura.summary)
+    storage.update_photo_reading(
+        photo_id,
+        visual_class=leitura.visual_class,
+        confidence=leitura.confidence,
+        visual_summary=leitura.summary,
+    )
+    return {
+        "photo_id": photo_id,
+        "visual_class": leitura.visual_class,
+        "confidence": leitura.confidence,
+        "summary": leitura.summary,
+        "pipe_visible": leitura.pipe_visible,
+        "model": config.llm_model,
+    }
 
 
 @app.post("/api/replay/jump/{event_id}")

@@ -100,6 +100,16 @@ button.primary { background: var(--machine); border-color: var(--machine); color
 .track i { display: block; height: 100%; background: var(--confirmed); border-radius: 5px;
            box-shadow: 0 0 0 2px var(--surface-1); transition: width .5s; }
 .empty { padding: 18px 14px; color: var(--text-muted); font-size: 13px; }
+.controls select { font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border, rgba(127,127,127,.35)); background: var(--surface-1); color: var(--text); }
+.moments { position: relative; flex-basis: 100%; height: 22px; margin-top: 2px; }
+.moments b { position: absolute; top: 0; transform: translateX(-50%); font-size: 13px; line-height: 20px; cursor: pointer; opacity: .85; user-select: none; }
+.moments b:hover { opacity: 1; transform: translateX(-50%) scale(1.35); }
+.ev.link, .gallery figure.link { cursor: pointer; }
+.ev.link:hover .t, .gallery figure.link:hover figcaption b { text-decoration: underline; }
+.agentbox { padding: 14px; font-size: 13px; line-height: 1.55; color: var(--text-secondary); border-bottom: 1px solid var(--border, rgba(127,127,127,.2)); }
+.agentbox b { color: var(--text); }
+.gallery button { font: inherit; font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border, rgba(127,127,127,.35)); background: var(--surface-1); color: var(--text); cursor: pointer; }
+.gallery .reading { font-style: italic; }
 .daybar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin: 14px 14px 8px; background: var(--surface-2, rgba(127,127,127,.12)); }
 .daybar i { display: block; height: 100%; min-width: 1px; }
 .daykey { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 14px 12px; font-size: 12px; color: var(--text-secondary); }
@@ -130,10 +140,16 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     <button onclick="cmd('pause')">⏸ Pausar</button>
     <button onclick="cmd('reset')">↺ Reiniciar</button>
     <button onclick="zerarDemo()" title="Apaga decisões, confirmações e fotos do Telegram para gravar de novo">⌫ Zerar conversa</button>
+    <button onclick="proximoEvento()" title="Pula o relógio para o próximo evento">⏭ Próximo evento</button>
+    <button onclick="fimDoDia()" title="Pula o relógio para o fim da jornada">⏩ Fim do dia</button>
+    <select id="velocidade" onchange="velocidade(this.value)" title="Velocidade do replay">
+      <option value="60">60×</option><option value="180">180×</option><option value="600">600×</option>
+    </select>
     <button onclick="enquadrar()" title="Volta o mapa para o traçado do projeto">⌖ Enquadrar</button>
     <button onclick="toggleTheme()">◐ Tema</button>
     <div class="clock"><small id="day" style="margin-right:8px"></small><b id="time">--:--</b><small id="speed"></small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
+    <div class="moments" id="moments" title="Clique num marcador para ir àquele instante"></div>
   </div>
 
   <section class="tiles" id="tiles"></section>
@@ -312,7 +328,7 @@ function linhaDoTempo(d) {
     if (e.chainage_m != null) partes.push(`estaca ${num(e.chainage_m,1)} m`);
     if (e.dwell_minutes) partes.push(`${num(e.dwell_minutes)} min`);
     if (e.context && e.context.planned_diameter_mm) partes.push(`DN${num(e.context.planned_diameter_mm)}`);
-    return `<div class="ev"><span class="ico" style="color:${t.cor}">${t.ico}</span>
+    return `<div class="ev link" onclick="irPara('${e.timestamp}')" title="Ir para este instante"><span class="ico" style="color:${t.cor}">${t.ico}</span>
       <span class="body"><span class="t">${t.rotulo}</span><br><span class="m">${partes.join(' · ') || '—'}</span></span>
       <time>${hora(e.timestamp)}</time></div>`;
   }).join('');
@@ -375,9 +391,11 @@ function evidencias(d) {
   alvo.innerHTML = '<div class="gallery">' + fotos.map(f => {
     const frente = frentes.find(x => x.photo_ids.includes(f.photo_id));
     const onde = f.segment_id ? `${f.segment_id} · estaca ${num(f.chainage_m)} m` : 'fora do corredor';
-    const leitura = f.visual_class ? `${f.visual_class} (${num(100*f.confidence)}%)` : 'sem leitura visual';
+    const leitura = f.visual_class
+      ? `<span class="reading">“${f.visual_summary || ''}”</span><br>${f.visual_class} · confiança ${num(100*f.confidence)}%`
+      : `sem leitura visual <button onclick="event.stopPropagation(); lerFoto('${f.photo_id}', this)">🔎 Ler com o modelo</button>`;
     const prova = frente ? `<span class="tag">evidência de execução · frente ${hora(frente.start)}–${hora(frente.end)}</span>` : '';
-    return `<figure><img src="/api/photo/${f.photo_id}" loading="lazy" alt="">
+    return `<figure class="link" onclick="irPara('${f.captured_at}')" title="Ir para o instante da foto"><img src="/api/photo/${f.photo_id}" loading="lazy" alt="">
       <figcaption><b>${hora(f.captured_at)}</b> · ${onde}<br>${leitura}<br>${prova}</figcaption></figure>`;
   }).join('') + '</div>';
 }
@@ -387,13 +405,20 @@ const FALAS = {
   notify:    {ico:'!', rotulo:'Agente avisou',        cor:'var(--serious)'},
   confirmed: {ico:'✓', rotulo:'Engenheiro respondeu', cor:'var(--confirmed)'},
 };
+function caixaDoAgente(a) {
+  const modelo = a.model_available ? `<b>${a.model}</b> via ${a.provider}` : `<b>sem chave de modelo</b> — decidindo só pela regra determinística`;
+  return `<div class="agentbox">Modelo: ${modelo}. O que ele faz: lê a foto (classe + confiança + uma frase),
+    escolhe entre <b>ignorar · registrar · avisar · perguntar</b> a partir do evento e da leitura de comportamento,
+    e extrai da sua resposta os metros e o motivo. O que ele nunca faz: calcular metros, estaca ou profundidade —
+    um número só entra se você o escreveu. Cada decisão guarda as consultas que a motivaram.</div>`;
+}
 function conversa(d) {
   const alvo = document.getElementById('agent');
   const a = d.agent || {actions: [], confirmations: []};
-  if (!a.actions.length) return;
+  if (!a.actions.length) { alvo.innerHTML = caixaDoAgente(a) + '<div class="empty">O agente ainda não falou. Ele pergunta no Telegram quando a máquina registra avanço sem confirmação.</div>'; return; }
   const porEvento = {};
   a.confirmations.forEach(c => { if (c.event_id) porEvento[c.event_id] = c; });
-  alvo.innerHTML = a.actions.slice().reverse().map(x => {
+  alvo.innerHTML = caixaDoAgente(a) + a.actions.slice().reverse().map(x => {
     const f = FALAS[x.decision] || {ico:'•', rotulo:x.decision, cor:'var(--text-muted)'};
     let detalhe = '';
     if (x.decision === 'confirmed') {
@@ -424,6 +449,61 @@ function toggleTheme() {
   atualizar();
 }
 
+async function irPara(iso) {
+  await fetch(`/api/replay/seek?at=${encodeURIComponent(iso)}`, {method:'POST'});
+  centralizado = false;   // reenquadra e a maquina aparece onde estava naquele instante
+  atualizar();
+  document.getElementById('map').scrollIntoView({behavior:'smooth', block:'center'});
+}
+let ultimoEstado = null;
+function proximoEvento() {
+  if (!ultimoEstado) return;
+  const agora = new Date(ultimoEstado.replay.simulated_time);
+  const futuro = ultimoEstado.all_events.find(e => new Date(e.timestamp) > agora);
+  irPara(futuro ? futuro.timestamp : ultimoEstado.replay.day_end);
+}
+function fimDoDia() { if (ultimoEstado) irPara(ultimoEstado.replay.day_end); }
+async function velocidade(v) {
+  await fetch(`/api/replay/speed?speed=${v}`, {method:'POST'});
+  await fetch('/api/replay/start', {method:'POST'});
+  atualizar();
+}
+let momentosChave = '';
+function momentos(d) {
+  // Os pontos onde algo acontece, na escala do dia: eventos que falam e fotos.
+  const alvo = document.getElementById('moments');
+  const inicio = new Date(d.replay.day_start), fim = new Date(d.replay.day_end);
+  const total = (fim - inicio) || 1;
+  const itens = [];
+  (d.all_events || []).forEach(e => {
+    if (!['progress_unconfirmed','long_dwell','outside_project','unexpected_segment','gps_gap'].includes(e.event_type)) return;
+    const t = TIPOS[e.event_type] || {ico:'•', rotulo:e.event_type, cor:'var(--text-muted)'};
+    itens.push({iso:e.timestamp, ico:t.ico, cor:t.cor, rotulo:t.rotulo});
+  });
+  (d.all_photos || []).forEach(f => itens.push({iso:f.captured_at, ico:'📷', cor:'', rotulo:'foto'}));
+  itens.sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  const chave = itens.map(i => i.iso).join('|');
+  if (chave === momentosChave) return;   // reconstruir a cada 2 s soltaria o marcador sob o dedo
+  momentosChave = chave;
+  // Duas fotos a dois minutos de distancia cairiam uma sobre a outra: marcadores a menos
+  // de 1,6% do dia (~13 min) descem uma linha, e a faixa cresce para acomodar.
+  const linhas = [];
+  const marcas = itens.map(i => {
+    const x = 100 * (new Date(i.iso) - inicio) / total;
+    let linha = linhas.findIndex(ultimo => x - ultimo >= 1.6);
+    if (linha < 0) { linha = linhas.length; linhas.push(x); } else { linhas[linha] = x; }
+    return `<b style="left:${x.toFixed(2)}%;top:${linha*20}px;color:${i.cor}" title="${i.rotulo} · ${hora(i.iso)}" onclick="irPara('${i.iso}')">${i.ico}</b>`;
+  });
+  alvo.style.height = `${Math.max(1, linhas.length) * 20 + 2}px`;
+  alvo.innerHTML = marcas.join('');
+}
+async function lerFoto(id, botao) {
+  botao.disabled = true; botao.textContent = 'lendo…';
+  const r = await fetch(`/api/photo/${id}/read`, {method:'POST'});
+  if (!r.ok) { botao.textContent = 'falhou: ' + ((await r.json()).detail || r.status); return; }
+  atualizar();
+}
+
 async function cmd(acao) {
   await fetch(`/api/replay/${acao}`, {method:'POST'});
   atualizar();
@@ -436,6 +516,10 @@ async function atualizar() {
     document.getElementById('time').textContent = hora(d.replay.simulated_time);
     document.getElementById('day').textContent = new Date(d.replay.simulated_time).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', timeZone:'America/Sao_Paulo'});
     document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
+    ultimoEstado = d;
+    const sel = document.getElementById('velocidade');
+    if (sel && document.activeElement !== sel && [...sel.options].some(o => +o.value === d.replay.speed)) sel.value = String(d.replay.speed);
+    momentos(d);
     document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
     desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d); comportamento(d); evidencias(d);

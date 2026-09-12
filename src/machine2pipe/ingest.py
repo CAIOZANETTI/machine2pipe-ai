@@ -136,6 +136,7 @@ def photo_record(
     source: str,
     visual_class: str | None = None,
     confidence: float | None = None,
+    visual_summary: str | None = None,
 ) -> dict:
     """Monta a linha de `photo_evidence` no contrato de `docs/TASK_SPLIT.md`."""
     return {
@@ -149,6 +150,7 @@ def photo_record(
         "telemetry_delta_seconds": placement.telemetry_delta_seconds,
         "visual_class": visual_class,
         "confidence": confidence,
+        "visual_summary": visual_summary,
         # Uma classificacao visual e probabilistica: a foto nunca fecha quantidade sozinha.
         "requires_confirmation": 1,
         "source": source,

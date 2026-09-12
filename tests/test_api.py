@@ -124,7 +124,7 @@ def test_diagnostico_reconhece_token_entre_aspas(cliente, monkeypatch):
 
 def test_estado_expoe_a_conversa_do_agente(cliente):
     agente = cliente.get("/api/state").json()["agent"]
-    assert set(agente) == {"actions", "confirmations", "open_question"}
+    assert {"actions", "confirmations", "open_question", "model"} <= set(agente)
 
 
 def test_zerar_a_demonstracao_volta_o_replay_ao_inicio(cliente):
@@ -132,3 +132,36 @@ def test_zerar_a_demonstracao_volta_o_replay_ao_inicio(cliente):
     resposta = cliente.post("/api/agent/reset").json()
     assert set(resposta["cleared"]) == {"agent_actions", "confirmations", "telegram_photos"}
     assert resposta["replay"]["status"] == "stopped"
+
+
+def test_seek_leva_o_relogio_a_qualquer_instante_do_dia(cliente):
+    resposta = cliente.post("/api/replay/seek", params={"at": "2022-06-28T12:59:00-03:00"}).json()
+    assert resposta["replay"]["status"] == "paused"
+    estado = cliente.get("/api/state").json()
+    assert estado["replay"]["simulated_time"] == "2022-06-28T12:59:00-03:00"
+
+
+def test_seek_nao_sai_do_dia(cliente):
+    resposta = cliente.post("/api/replay/seek", params={"at": "2022-06-28T23:00:00-03:00"}).json()
+    estado = cliente.get("/api/state").json()
+    assert resposta["simulated_time"] == estado["replay"]["day_end"]
+
+
+def test_seek_rejeita_instante_invalido(cliente):
+    assert cliente.post("/api/replay/seek", params={"at": "ontem"}).status_code == 400
+
+
+def test_estado_diz_qual_modelo_esta_por_tras_do_agente(cliente):
+    agente = cliente.get("/api/state").json()["agent"]
+    assert agente["model"] and agente["provider"]
+    assert "model_available" in agente
+
+
+def test_ler_foto_desconhecida_falha_visivelmente(cliente):
+    assert cliente.post("/api/photo/nao_existe/read").status_code == 404
+
+
+def test_estado_oferece_os_momentos_do_dia_inteiro(cliente):
+    estado = cliente.get("/api/state").json()
+    assert len(estado["all_events"]) == 18, "atalhos de tempo mostram o dia inteiro, nao so o passado"
+    assert estado["events"] == [], "a linha do tempo continua respeitando o relogio"
