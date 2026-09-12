@@ -1,4 +1,5 @@
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -26,11 +27,24 @@ def projeto():
 
 
 def test_le_trechos_estruturas_e_atributos(projeto):
-    assert len(projeto.segments) == 7
-    assert len(projeto.structures) == 8
-    trecho = projeto.segment("TR-04")
+    """O projeto configurado e o export real do Google Earth: um eixo DN400 e seus pontos."""
+    assert [t.segment_id for t in projeto.segments] == ["tubo_concreto_40"]
+    assert {e.structure_id for e in projeto.structures} == {
+        "posto_gasolina", "canteiro", "jazida_solo", "bueiro_triplo"
+    }
+    trecho = projeto.segment("tubo_concreto_40")
     assert trecho.attributes["material"] == "concrete"
     assert trecho.attributes["diameter_mm"] == 400.0  # convertido, nao string
+    assert trecho.attributes["planned_length_m"] == 255.06
+
+
+def test_o_kml_provisorio_continua_legivel():
+    """`data/sample/` nao serve a demonstracao, mas ainda precisa carregar para comparacao."""
+    projeto = project_loader.load(
+        Path("data/sample/projeto_calmon.kml"), Path("data/sample/segments.csv")
+    )
+    assert len(projeto.segments) == 7
+    assert projeto.segment("TR-04").attributes["diameter_mm"] == 400.0
 
 
 def test_atributos_saem_da_descricao_quando_nao_ha_extended_data(tmp_path):

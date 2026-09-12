@@ -219,6 +219,10 @@ def photos_frame(database_path: Path | None = None) -> pd.DataFrame:
     return _frame("SELECT * FROM photo_evidence ORDER BY captured_at", database_path=database_path)
 
 
+def agent_actions_frame(database_path: Path | None = None) -> pd.DataFrame:
+    return _frame("SELECT * FROM agent_actions ORDER BY action_id", database_path=database_path)
+
+
 def confirmations_frame(database_path: Path | None = None) -> pd.DataFrame:
     return _frame("SELECT * FROM confirmations ORDER BY confirmed_at", database_path=database_path)
 
@@ -251,6 +255,24 @@ def pending_events(
         query += " AND e.timestamp <= ?"
         parameters = (until,)
     return _frame(query + " ORDER BY e.timestamp", parameters, database_path)
+
+
+def open_question(database_path: Path | None = None) -> dict[str, Any] | None:
+    """A ultima pergunta feita pelo agente que ainda nao recebeu confirmacao.
+
+    O worker reinicia — deploy, queda, `supervise_worker` — e o engenheiro nao tem por que
+    saber disso. Sem esta consulta a resposta que chega depois do reinicio ficaria orfa e a
+    confirmacao perderia o `event_id` que a torna auditavel.
+    """
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT a.event_id, a.message, e.segment_id FROM agent_actions a"
+            " LEFT JOIN events e ON e.event_id = a.event_id"
+            " WHERE a.decision = 'ask'"
+            "   AND NOT EXISTS (SELECT 1 FROM confirmations c WHERE c.event_id = a.event_id)"
+            " ORDER BY a.action_id DESC LIMIT 1"
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def handled_event_ids(database_path: Path | None = None) -> set[str]:
