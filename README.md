@@ -463,6 +463,10 @@ V2 remains decision support. It does not remotely command equipment.
 - Telemetry does not identify every construction activity.
 - The prototype supports engineering decisions; it does not command machinery.
 
+## Development collaboration
+
+Machine2Pipe AI is led by Caio Zanetti and developed with contributions from OpenAI Codex and Anthropic Claude. Actual work is recorded by commit in [docs/CONTRIBUTIONS.md](docs/CONTRIBUTIONS.md). All engineering interpretations remain subject to Caio's validation.
+
 ## Prior work
 
 This hackathon project builds on public work created by Caio Zanetti:
