@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import signal
 import threading
+from datetime import timedelta
 from typing import Any
 
 import pandas as pd
@@ -67,7 +69,9 @@ def _event_dict(row: Any) -> dict[str, Any]:
         "event_type": row.event_type,
         "timestamp": row.timestamp,
         "machine_id": row.machine_id,
-        "segment_id": row.segment_id,
+        # NULL do SQLite chega como NaN, que e verdadeiro: "em nan" na mensagem e um
+        # evento sem trecho passando pela regra que exige trecho para perguntar.
+        "segment_id": row.segment_id if isinstance(row.segment_id, str) else None,
         "chainage_m": _number(row.chainage_m),
         "distance_to_axis_m": _number(row.distance_to_axis_m),
         "engine_on": bool(row.engine_on),
@@ -339,6 +343,34 @@ class FieldAgent:
             "pergunta_em_aberto": (pergunta or {}).get("message"),
         }
 
+    DATA = re.compile(r"\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b")
+    RELATIVOS = {"anteontem": -2, "ontem": -1, "amanha": 1, "amanhã": 1}
+
+    def _day_in(self, text: str):
+        """A data que o engenheiro citou, se citou. 'Ontem' e relativo ao dia do replay."""
+        hoje = pd.Timestamp(config.replay_date).date()
+        baixo = text.lower()
+        for palavra, dias in self.RELATIVOS.items():
+            if palavra in baixo:
+                return hoje + timedelta(days=dias)
+        achado = self.DATA.search(text)
+        if not achado:
+            return None
+        dia, mes, ano = achado.groups()
+        ano = int(ano) if ano else hoje.year
+        if ano < 100:
+            ano += 2000
+        try:
+            return pd.Timestamp(year=ano, month=int(mes), day=int(dia)).date()
+        except ValueError:
+            return None
+
+    def _other_day_context(self, text: str) -> dict[str, Any] | None:
+        dia = self._day_in(text)
+        if not dia or dia == pd.Timestamp(config.replay_date).date():
+            return None
+        return self.index.read_day(dia)
+
     def on_text(self, message: dict[str, Any], text: str) -> str | None:
         """Texto do engenheiro: resposta a pergunta em aberto, ou conversa livre.
 
@@ -349,7 +381,20 @@ class FieldAgent:
         with self.lock:
             pergunta = self.pending
         if not pergunta:
-            return agent.answer(text, context=self.context(), fallback=self.status())
+            contexto = self.context()
+            outro = self._other_day_context(text)
+            fallback = self.status()
+            if outro:
+                # O engenheiro citou outro dia: a leitura daquele dia entra no contexto, e
+                # sem modelo ela e a propria resposta.
+                contexto["outro_dia_citado"] = outro
+                fallback = (
+                    f"{pd.Timestamp(outro['day']):%d/%m/%Y}: {outro['reading']}"
+                    + (f" ({outro.get('telemetry_points', 0)} pontos de telemetria, "
+                       f"{outro.get('points_in_corridor', 0)} no corredor do projeto)"
+                       if outro.get("telemetry_points") else "")
+                )
+            return agent.answer(text, context=contexto, fallback=fallback)
 
         leitura = agent.read_reply(text, question=pergunta.get("message"))
         if not leitura.conclusive:

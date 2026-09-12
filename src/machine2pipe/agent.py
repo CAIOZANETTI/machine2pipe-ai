@@ -185,6 +185,9 @@ def default_message(event: dict[str, Any], decision: str) -> str:
         )
     if tipo == event_rules.UNEXPECTED_SEGMENT:
         return f"Atividade registrada em {onde}, que nao estava previsto para hoje."
+    if tipo == event_rules.GPS_GAP:
+        lacuna = f" por {parada:.0f} min" if parada >= 1 else ""
+        return f"Sem sinal de GPS{lacuna} a partir das {momento}, em {onde}."
     return f"{_short(event)}."
 
 
@@ -317,7 +320,10 @@ Regras que nao se negociam:
   comportamento, nao metro assentado. Nunca estime metros, profundidade ou diametro.
 - Se a pergunta pedir algo que o contexto nao tem, diga que nao tem e o que voce tem.
 - Se houver pergunta em aberto, lembre-a ao final em uma frase.
-- O "hoje" do engenheiro e o dia do replay, nao a data real."""
+- O "hoje" do engenheiro e o dia do replay, nao a data real.
+- Se o contexto trouxer "outro_dia_citado", o engenheiro perguntou por aquele dia: responda
+  com a leitura daquele dia (horas por estado, frentes, pontos no corredor), e diga
+  claramente quando a maquina nao entrou no corredor do projeto."""
 
 
 def answer(question: str, *, context: dict[str, Any], fallback: str) -> str:

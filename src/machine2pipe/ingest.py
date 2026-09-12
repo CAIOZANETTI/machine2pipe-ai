@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date as date_type
+from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -75,11 +78,44 @@ class ProjectIndex:
     def __init__(self) -> None:
         self.project = project_loader.load(config.project_kml_path, config.segments_csv_path)
         self.matcher = SegmentMatcher(self.project, config.target_crs, config.corridor_m)
-        self.telemetry = loader.load_day(config.replay_date)
+        # A telemetria inteira fica em memoria (608 dias, 78 mil linhas): o engenheiro pode
+        # perguntar por qualquer dia, e reler o Parquet a cada pergunta custaria segundos.
+        self.all_telemetry = loader.load()
+        dia = pd.Timestamp(config.replay_date).date()
+        self.telemetry = self.all_telemetry[
+            self.all_telemetry.timestamp.dt.date == dia
+        ].reset_index(drop=True)
         # A leitura de comportamento do dia inteiro; o worker recorta ate o instante.
         self.episodes = activity.episodes(
             self.matcher.match_frame(self.telemetry), project=self.project
         )
+
+    @lru_cache(maxsize=64)
+    def read_day(self, day: date_type) -> dict[str, Any]:
+        """Le qualquer dia da telemetria com a mesma regra de comportamento do replay.
+
+        E o que responde "o que aconteceu em 29/06?": naquele dia a maquina ligou 188 vezes
+        e nunca entrou no corredor — trabalhou fora deste projeto. Sem esta leitura o agente
+        so conheceria o dia do replay e teria de dizer "nao sei" ou, pior, inventar.
+        """
+        pontos = self.all_telemetry[self.all_telemetry.timestamp.dt.date == day]
+        if pontos.empty:
+            return {"day": day.isoformat(), "telemetry_points": 0,
+                    "reading": "sem telemetria nesse dia"}
+        casado = self.matcher.match_frame(pontos.reset_index(drop=True))
+        episodios = activity.episodes(casado, project=self.project)
+        resumo = activity.summary(episodios)
+        return {
+            "day": day.isoformat(),
+            "telemetry_points": int(len(casado)),
+            "points_in_corridor": int(casado.inside_corridor.sum()),
+            "engine_on_points": int(casado.engine_on.sum()),
+            "shift": f"{casado.timestamp.iloc[0]:%H:%M}–{casado.timestamp.iloc[-1]:%H:%M}",
+            "hours": resumo["hours"],
+            "front_hours": resumo["front_hours"],
+            "fronts": [f["summary"] for f in resumo["fronts"] if f["minutes"] >= 5],
+            "reading": activity.narrative(episodios, brief=True),
+        }
 
     @property
     def day_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
