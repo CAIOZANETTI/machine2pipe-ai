@@ -5,6 +5,7 @@ exatamente o que a conversa no Telegram gravou, sem ponte entre nuvens diferente
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -61,8 +62,26 @@ def _warm() -> None:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "replay_date": config.replay_date}
+def health() -> dict[str, object]:
+    """Healthcheck do Railway e diagnostico de configuracao.
+
+    Diz se cada segredo chegou ao container sem jamais revelar o valor: a causa mais
+    comum de um bot mudo e a variavel nao ter sido aplicada ao deploy.
+    """
+    photos = storage.photos_frame()
+    events_recorded = storage.events_frame()
+    return {
+        "status": "ok",
+        "replay_date": config.replay_date,
+        "telegram_token_configured": bool(config.telegram_bot_token),
+        "telegram_allowlist_configured": bool(config.telegram_chat_id),
+        "model_key_configured": bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")),
+        "exa_key_configured": bool(config.exa_api_key),
+        "database_path": str(config.database_path),
+        "database_writable": os.access(Path(config.database_path).parent, os.W_OK),
+        "events_recorded": int(len(events_recorded)),
+        "photos_loaded": int(len(photos)),
+    }
 
 
 @app.get("/")
