@@ -117,6 +117,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     <button class="primary" onclick="cmd('start')">▶ Iniciar</button>
     <button onclick="cmd('pause')">⏸ Pausar</button>
     <button onclick="cmd('reset')">↺ Reiniciar</button>
+    <button onclick="zerarDemo()" title="Apaga decisões, confirmações e fotos do Telegram para gravar de novo">⌫ Zerar conversa</button>
     <button onclick="toggleTheme()">◐ Tema</button>
     <div class="clock"><b id="time">--:--</b><small id="speed"></small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
@@ -135,6 +136,11 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
       <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--text-secondary);vertical-align:middle;margin-right:6px"></span>Foto de campo</span>
       <span id="corridor"></span>
     </div>
+  </section>
+
+  <section>
+    <h2>Conversa do agente</h2>
+    <div class="card timeline" id="agent"><div class="empty">O agente ainda não falou. Ele pergunta no Telegram quando a máquina registra avanço sem confirmação.</div></div>
   </section>
 
   <div class="cols">
@@ -164,12 +170,19 @@ const TIPOS = {
   gps_gap:              {ico:'◌', rotulo:'Falha de GPS',          cor:'var(--critical)'},
   rain_context:         {ico:'☂', rotulo:'Chuva no período',      cor:'var(--text-muted)'},
 };
-const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+// Sempre no fuso da obra: um jurado em outro fuso veria a jornada terminar as 22:14 em vez de 19:14.
+const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo'});
 const num = (v, d=0) => (v ?? 0).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
 
 let map, camadaProjeto, camadaTrilha, camadaFotos, centralizado = false;
 
 function iniciarMapa() {
+  // Sem a biblioteca do mapa (CDN lento ou bloqueado) o resto do painel continua vivo:
+  // a conversa do agente e o confirmado por trecho nao dependem do Leaflet.
+  if (typeof L === 'undefined') {
+    document.getElementById('map').innerHTML = '<div class="empty">Mapa indisponível: a biblioteca não carregou.</div>';
+    return;
+  }
   map = L.map('map', {zoomControl:true, attributionControl:true});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution:'© OpenStreetMap, © CARTO', maxZoom:20
@@ -181,6 +194,7 @@ function iniciarMapa() {
 }
 
 function desenharFotos(dados) {
+  if (!map) return;
   camadaFotos.clearLayers();
   (dados.photos || []).forEach(f => {
     if (f.latitude == null) return;
@@ -201,6 +215,7 @@ function desenharFotos(dados) {
 }
 
 function desenharProjeto(dados) {
+  if (!map) return;
   camadaProjeto.clearLayers();
   const estilo = getComputedStyle(document.documentElement);
   const cor = estilo.getPropertyValue('--project').trim();
@@ -216,6 +231,7 @@ function desenharProjeto(dados) {
 }
 
 function desenharMaquina(dados) {
+  if (!map) return;
   camadaTrilha.clearLayers();
   const cor = getComputedStyle(document.documentElement).getPropertyValue('--machine').trim();
   if (dados.track.length > 1) {
@@ -233,7 +249,9 @@ function indicadores(d) {
   const m = d.machine;
   const confirmado = d.segments.reduce((t,s) => t + s.confirmed_length_m, 0);
   const previsto = d.segments.reduce((t,s) => t + s.planned_length_m, 0);
-  const pendentes = d.events.filter(e => ['progress_unconfirmed','long_dwell'].includes(e.event_type)).length;
+  // Pergunta em aberto e o que o agente fez e ainda nao teve resposta, nao o evento que
+  // a motivou: depois que o engenheiro responde, o evento continua la e a duvida nao.
+  const pendentes = d.agent && d.agent.open_question ? 1 : 0;
   const tiles = [
     ['Trecho ativo', m.segment_id || '—', m.segment_id ? `estaca ${num(m.chainage_m,1)} m · ${num(m.distance_to_axis_m,1)} m do eixo` : 'fora do corredor'],
     ['Motor', m.engine_on ? 'Ligado' : 'Desligado', m.event_type ? m.event_type.replace(/_/g,' ') : ''],
@@ -241,7 +259,7 @@ function indicadores(d) {
     ['Deslocamento', `${num(m.distance_km,2)} km`, d.weather && d.weather.rain_mm ? `chuva ${num(d.weather.rain_mm,1)} mm no dia` : 'acumulado no dia'],
     ['Fotos de campo', String((d.photos||[]).length), 'casadas por horário'],
     ['Confirmado', `${num(confirmado)} m`, `de ${num(previsto)} m previstos`],
-    ['Aguardando engenheiro', String(pendentes), pendentes ? 'perguntas em aberto' : 'nada pendente'],
+    ['Aguardando engenheiro', String(pendentes), pendentes ? 'pergunta em aberto no Telegram' : 'nada pendente'],
   ];
   document.getElementById('tiles').innerHTML = tiles.map(([l,v,n]) =>
     `<div class="card tile"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`
@@ -276,6 +294,41 @@ function trechos(d) {
   }).join('');
 }
 
+const FALAS = {
+  ask:       {ico:'?', rotulo:'Agente perguntou',     cor:'var(--warning)'},
+  notify:    {ico:'!', rotulo:'Agente avisou',        cor:'var(--serious)'},
+  confirmed: {ico:'✓', rotulo:'Engenheiro respondeu', cor:'var(--confirmed)'},
+};
+function conversa(d) {
+  const alvo = document.getElementById('agent');
+  const a = d.agent || {actions: [], confirmations: []};
+  if (!a.actions.length) return;
+  const porEvento = {};
+  a.confirmations.forEach(c => { if (c.event_id) porEvento[c.event_id] = c; });
+  alvo.innerHTML = a.actions.slice().reverse().map(x => {
+    const f = FALAS[x.decision] || {ico:'•', rotulo:x.decision, cor:'var(--text-muted)'};
+    let detalhe = '';
+    if (x.decision === 'confirmed') {
+      const c = porEvento[x.event_id] || a.confirmations[a.confirmations.length - 1];
+      if (c) detalhe = [c.segment_id, c.confirmed_length_m != null ? `${num(c.confirmed_length_m,1)} m` : 'sem quantidade',
+                        c.status, c.interruption_reason, c.confirmed_by].filter(Boolean).join(' · ');
+    } else if (x.confidence != null) {
+      detalhe = `confiança ${num(x.confidence*100)}%`;
+    }
+    const meta = [x.event_id, detalhe].filter(Boolean).join(' · ');
+    return `<div class="ev"><span class="ico" style="color:${f.cor}">${f.ico}</span>
+      <span class="body"><span class="t">${f.rotulo}</span><br><span class="m">${x.message || ''}</span>${meta ? `<br><span class="m" style="opacity:.7">${meta}</span>` : ''}</span>
+      <time>${hora(x.created_at)}</time></div>`;
+  }).join('');
+}
+
+async function zerarDemo() {
+  if (!confirm('Apagar decisões, confirmações e fotos recebidas pelo Telegram? Os eventos e as fotos do álbum ficam.')) return;
+  await fetch('/api/agent/reset', {method:'POST'});
+  document.getElementById('agent').innerHTML = '<div class="empty">Conversa zerada. Inicie o replay.</div>';
+  atualizar();
+}
+
 function toggleTheme() {
   const escuro = document.documentElement.getAttribute('data-theme') === 'dark'
     || (!document.documentElement.hasAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -296,7 +349,7 @@ async function atualizar() {
     document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
     document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
-    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d);
+    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d);
   } catch (erro) {
     document.getElementById('speed').textContent = 'sem resposta da API';
   }
