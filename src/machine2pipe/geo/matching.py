@@ -63,6 +63,13 @@ class SegmentMatcher:
         enriched["distance_to_axis_m"] = [m.distance_to_axis_m for m in matches]
         enriched["chainage_m"] = [m.chainage_m for m in matches]
         enriched["inside_corridor"] = [m.inside_corridor for m in matches]
+        # Coordenadas metricas: permitem medir permanencia num raio sem reprojetar de novo.
+        points = [
+            project_point(row.latitude, row.longitude, self.target_crs)
+            for row in telemetry.itertuples()
+        ]
+        enriched["x_m"] = [p.x for p in points]
+        enriched["y_m"] = [p.y for p in points]
         return enriched
 
     def segment_length_m(self, segment_id: str) -> float:

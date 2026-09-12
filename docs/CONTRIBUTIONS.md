@@ -19,6 +19,7 @@ Add one row for each meaningful code or documentation delivery.
 | 2026-09-12 | Caio + Codex | Product planning | Documentation commits | README, implementation plan, AGENTS | Defined MVP, web architecture, real-data inputs, photo workflow, agent boundaries, and V2 roadmap |
 | 2026-09-12 | Caio + Claude | P0 — Foundation | `9e0baaf` | Package, config, telemetry adapter, dashboard, Docker/Railway, tests | Scaffold with src layout; JCB 2022 adapter validated against the real Parquet (raio_m confirmed as displacement, MAE 0.13 m); demo day pinned to 2022-06-28; Streamlit plotting the real track; single-service deploy config; 5 passing tests |
 | 2026-09-12 | Caio + Claude | P2 — Geospatial engine | `pending` | geo/project_loader, geo/matching, geo/stationing, scripts/make_demo_kml | KML/KMZ parser reading ExtendedData, `key: value` descriptions and a CSV fallback, since Google Earth Web exports neither; segment matching with chainage and distance to axis in EPSG:31982; provisional 7-segment alignment derived from the real 28/06 route; 12 passing tests |
+| 2026-09-12 | Caio + Claude | P2 — Events and storage | `pending` | events.py, storage.py, app/streamlit_app.py | Deterministic event rules firing once per episode; dwell measured as time within a radius rather than point-to-point movement; SQLite with WAL, idempotent event writes and a confirmation record that refuses any quantity without a human source; 20 passing tests |
 
 ## Attribution rules
 

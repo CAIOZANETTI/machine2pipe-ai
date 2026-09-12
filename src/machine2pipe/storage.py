@@ -1,0 +1,238 @@
+"""Persistencia SQLite dos eventos, evidencias fotograficas e progresso confirmado.
+
+WAL e obrigatorio: o worker escreve enquanto o painel le, e sem ele o Streamlit
+encontraria `database is locked` no meio da demonstracao.
+
+Nenhuma quantidade e gravada sem uma fonte humana. `record_confirmation` exige
+`confirmed_by`, e esse campo guarda a pessoa, nunca o modelo.
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Iterable, Iterator
+
+import pandas as pd
+
+from machine2pipe.config import config
+from machine2pipe.events import Event
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS events (
+    event_id            TEXT PRIMARY KEY,
+    event_type          TEXT NOT NULL,
+    timestamp           TEXT NOT NULL,
+    machine_id          TEXT NOT NULL,
+    segment_id          TEXT,
+    chainage_m          REAL,
+    distance_to_axis_m  REAL,
+    engine_on           INTEGER NOT NULL,
+    moving              INTEGER NOT NULL,
+    movement_m          REAL NOT NULL,
+    dwell_minutes       REAL NOT NULL,
+    context             TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS photo_evidence (
+    photo_id                TEXT PRIMARY KEY,
+    captured_at             TEXT,
+    received_at             TEXT NOT NULL,
+    latitude                REAL,
+    longitude               REAL,
+    segment_id              TEXT,
+    chainage_m              REAL,
+    distance_to_segment_m   REAL,
+    telemetry_delta_seconds REAL,
+    visual_class            TEXT,
+    confidence              REAL,
+    requires_confirmation   INTEGER NOT NULL DEFAULT 1,
+    source                  TEXT NOT NULL DEFAULT 'telegram',
+    file_path               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS confirmations (
+    confirmation_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id            TEXT,
+    machine_id          TEXT NOT NULL,
+    segment_id          TEXT NOT NULL,
+    confirmed_length_m  REAL,
+    status              TEXT NOT NULL,
+    interruption_reason TEXT,
+    confirmed_by        TEXT NOT NULL,
+    source              TEXT NOT NULL DEFAULT 'telegram',
+    confirmed_at        TEXT NOT NULL,
+    raw_message         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS agent_actions (
+    action_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id    TEXT,
+    decision    TEXT NOT NULL,
+    confidence  REAL,
+    message     TEXT,
+    tool_calls  TEXT NOT NULL DEFAULT '[]',
+    created_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_segment ON events(segment_id);
+CREATE INDEX IF NOT EXISTS idx_confirmations_segment ON confirmations(segment_id);
+"""
+
+VALID_STATUS = {"completed", "partially_completed", "not_started", "interrupted"}
+
+
+class StorageError(ValueError):
+    """Tentativa de gravar um registro que quebraria a auditoria."""
+
+
+@contextmanager
+def connect(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    path = Path(database_path or config.database_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, timeout=30)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA busy_timeout=30000")
+    try:
+        yield connection
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def initialize(database_path: Path | None = None) -> None:
+    with connect(database_path) as connection:
+        connection.executescript(SCHEMA)
+
+
+def record_events(events: Iterable[Event], database_path: Path | None = None) -> int:
+    """Grava eventos de forma idempotente: reexecutar o replay nao duplica nada."""
+    rows = [
+        (
+            e.event_id, e.event_type, e.timestamp.isoformat(), e.machine_id, e.segment_id,
+            e.chainage_m, e.distance_to_axis_m, int(e.engine_on), int(e.moving),
+            e.movement_m, e.dwell_minutes, json.dumps(e.context, default=str),
+        )
+        for e in events
+    ]
+    if not rows:
+        return 0
+    with connect(database_path) as connection:
+        before = connection.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        connection.executemany(
+            "INSERT OR IGNORE INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows
+        )
+        return connection.execute("SELECT COUNT(*) FROM events").fetchone()[0] - before
+
+
+def record_photo(photo: dict[str, Any], database_path: Path | None = None) -> None:
+    columns = [
+        "photo_id", "captured_at", "received_at", "latitude", "longitude", "segment_id",
+        "chainage_m", "distance_to_segment_m", "telemetry_delta_seconds", "visual_class",
+        "confidence", "requires_confirmation", "source", "file_path",
+    ]
+    if not photo.get("photo_id"):
+        raise StorageError("photo_id e obrigatorio")
+    photo.setdefault("received_at", datetime.now().isoformat())
+    values = [photo.get(column) for column in columns]
+    with connect(database_path) as connection:
+        connection.execute(
+            f"INSERT OR REPLACE INTO photo_evidence ({','.join(columns)}) "
+            f"VALUES ({','.join('?' * len(columns))})",
+            values,
+        )
+
+
+def record_confirmation(
+    *,
+    segment_id: str,
+    status: str,
+    confirmed_by: str,
+    machine_id: str | None = None,
+    event_id: str | None = None,
+    confirmed_length_m: float | None = None,
+    interruption_reason: str | None = None,
+    source: str = "telegram",
+    confirmed_at: datetime | str | None = None,
+    raw_message: str | None = None,
+    database_path: Path | None = None,
+) -> None:
+    """Grava uma quantidade confirmada por uma pessoa.
+
+    Chamada pelo lado do agente. Sem `confirmed_by` nao ha registro: uma quantidade sem
+    fonte humana nao entra no banco, porque o painel nao poderia defende-la depois.
+    """
+    if not confirmed_by:
+        raise StorageError("confirmed_by e obrigatorio: nenhuma quantidade sem fonte humana")
+    if status not in VALID_STATUS:
+        raise StorageError(f"status invalido: {status!r}; esperado um de {sorted(VALID_STATUS)}")
+    if confirmed_length_m is not None and confirmed_length_m < 0:
+        raise StorageError("confirmed_length_m nao pode ser negativo")
+
+    moment = confirmed_at or datetime.now()
+    with connect(database_path) as connection:
+        connection.execute(
+            "INSERT INTO confirmations (event_id, machine_id, segment_id, confirmed_length_m,"
+            " status, interruption_reason, confirmed_by, source, confirmed_at, raw_message)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (
+                event_id, machine_id or config.machine_id, segment_id, confirmed_length_m,
+                status, interruption_reason, confirmed_by, source,
+                moment.isoformat() if isinstance(moment, datetime) else str(moment),
+                raw_message,
+            ),
+        )
+
+
+def record_agent_action(
+    *,
+    decision: str,
+    event_id: str | None = None,
+    confidence: float | None = None,
+    message: str | None = None,
+    tool_calls: list[dict] | None = None,
+    database_path: Path | None = None,
+) -> None:
+    """Registra a decisao do agente e as ferramentas que ele chamou, para auditoria."""
+    with connect(database_path) as connection:
+        connection.execute(
+            "INSERT INTO agent_actions (event_id, decision, confidence, message, tool_calls,"
+            " created_at) VALUES (?,?,?,?,?,?)",
+            (event_id, decision, confidence, message,
+             json.dumps(tool_calls or [], default=str), datetime.now().isoformat()),
+        )
+
+
+def _frame(query: str, parameters: tuple = (), database_path: Path | None = None) -> pd.DataFrame:
+    with connect(database_path) as connection:
+        return pd.DataFrame([dict(row) for row in connection.execute(query, parameters)])
+
+
+def events_frame(database_path: Path | None = None) -> pd.DataFrame:
+    return _frame("SELECT * FROM events ORDER BY timestamp", database_path=database_path)
+
+
+def photos_frame(database_path: Path | None = None) -> pd.DataFrame:
+    return _frame("SELECT * FROM photo_evidence ORDER BY captured_at", database_path=database_path)
+
+
+def confirmations_frame(database_path: Path | None = None) -> pd.DataFrame:
+    return _frame("SELECT * FROM confirmations ORDER BY confirmed_at", database_path=database_path)
+
+
+def confirmed_progress(database_path: Path | None = None) -> pd.DataFrame:
+    """Total confirmado por trecho, com o numero de confirmacoes que o sustenta."""
+    return _frame(
+        "SELECT segment_id, SUM(COALESCE(confirmed_length_m, 0)) AS confirmed_length_m,"
+        " COUNT(*) AS confirmations, MAX(confirmed_at) AS last_confirmed_at"
+        " FROM confirmations GROUP BY segment_id ORDER BY segment_id",
+        database_path=database_path,
+    )
+
+
+def confirmed_segment_ids(database_path: Path | None = None) -> set[str]:
+    frame = confirmations_frame(database_path)
+    return set(frame.segment_id) if not frame.empty else set()

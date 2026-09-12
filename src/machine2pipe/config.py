@@ -45,6 +45,7 @@ class Config:
     long_dwell_minutes: float = float(os.getenv("LONG_DWELL_MINUTES", "45"))
     dwell_movement_m: float = float(os.getenv("DWELL_MOVEMENT_M", "20"))
     gps_gap_minutes: float = float(os.getenv("GPS_GAP_MINUTES", "30"))
+    outside_project_minutes: float = float(os.getenv("OUTSIDE_PROJECT_MINUTES", "20"))
 
 
 config = Config()

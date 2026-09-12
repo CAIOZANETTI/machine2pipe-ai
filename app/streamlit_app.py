@@ -1,6 +1,14 @@
 """Painel publico: mapa do projeto, trilha da maquina, eventos e progresso confirmado."""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# O Streamlit Cloud executa a partir da raiz do repositorio, sem instalar o pacote.
+SRC = Path(__file__).resolve().parents[1] / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
