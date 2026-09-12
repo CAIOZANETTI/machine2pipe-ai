@@ -259,3 +259,40 @@ def test_pergunta_do_engenheiro_nao_fecha_a_pergunta_do_agente(index, campo, mon
     assert campo.pending is not None
     assert "Pergunta em aberto" in resposta
     assert storage.confirmations_frame().empty
+
+
+def test_le_outro_dia_sob_demanda(index):
+    """29/06: a maquina ligou o dia inteiro e nunca entrou no corredor deste projeto."""
+    from datetime import date
+    leitura = index.read_day(date(2022, 6, 29))
+    assert leitura["telemetry_points"] > 300
+    assert leitura["points_in_corridor"] == 0
+    assert leitura["fronts"] == []
+    assert leitura["reading"].startswith("nenhuma frente")
+    assert index.read_day(date(2022, 6, 27))["front_hours"] > 1, "27/06 teve frente no eixo"
+    assert index.read_day(date(2021, 1, 1))["telemetry_points"] == 0
+
+
+def test_data_citada_entra_no_contexto_e_na_resposta_sem_modelo(campo):
+    resposta = campo.on_text({"from": {"id": 42}}, "o que aconteceu em 29/06/2022?")
+    assert resposta.startswith("29/06/2022:")
+    assert "nenhuma frente" in resposta
+    assert "0 no corredor" in resposta
+
+
+def test_ontem_e_relativo_ao_dia_do_replay(campo):
+    from datetime import date
+    assert campo._day_in("e ontem?") == date(2022, 6, 27)
+    assert campo._day_in("amanhã tem serviço?") == date(2022, 6, 29)
+    assert campo._day_in("dia 7/7") == date(2022, 7, 7)
+    assert campo._day_in("que horas são") is None
+
+
+def test_evento_sem_trecho_nao_vira_nan(index, banco):
+    worker._record_day(index)
+    fila = storage.pending_events()
+    lacuna = worker._event_dict(next(fila[fila.event_type == "gps_gap"].itertuples()))
+    assert lacuna["segment_id"] is None
+    mensagem = agent.default_message(lacuna, agent.NOTIFY)
+    assert "nan" not in mensagem and "Sem sinal de GPS" in mensagem
+    assert agent.ceiling(lacuna) == agent.NOTIFY
