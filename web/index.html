@@ -118,6 +118,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     <button onclick="cmd('pause')">⏸ Pausar</button>
     <button onclick="cmd('reset')">↺ Reiniciar</button>
     <button onclick="zerarDemo()" title="Apaga decisões, confirmações e fotos do Telegram para gravar de novo">⌫ Zerar conversa</button>
+    <button onclick="enquadrar()" title="Volta o mapa para o traçado do projeto">⌖ Enquadrar</button>
     <button onclick="toggleTheme()">◐ Tema</button>
     <div class="clock"><b id="time">--:--</b><small id="speed"></small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
@@ -184,10 +185,11 @@ function iniciarMapa() {
     return;
   }
   map = L.map('map', {zoomControl:true, attributionControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution:'© OpenStreetMap, © CARTO', maxZoom:20
+  // OpenStreetMap direto: a CARTO passou a exigir chave e carimbava "API KEY REQUIRED".
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap contributors', maxZoom:19
   }).addTo(map);
-  map.setView([-26.6034, -51.0984], 16);
+  map.setView([-26.6046, -51.0994], 17);
   camadaProjeto = L.layerGroup().addTo(map);
   camadaTrilha = L.layerGroup().addTo(map);
   camadaFotos = L.layerGroup().addTo(map);
@@ -227,8 +229,16 @@ function desenharProjeto(dados) {
     L.circleMarker(s.coordinates[0], {radius:4, color:cor, fillColor:cor, fillOpacity:.55, weight:1})
       .addTo(camadaProjeto);
   });
-  if (!centralizado && limites.length) { map.fitBounds(limites, {padding:[40,40]}); centralizado = true; }
+  if (!centralizado && limites.length) {
+    // O container pode ainda nao ter altura na primeira chamada; sem invalidateSize o
+    // fitBounds calcula o zoom sobre um mapa de tamanho zero e cai longe do projeto.
+    map.invalidateSize();
+    map.fitBounds(limites, {padding:[40,40], maxZoom:17});
+    centralizado = true;
+  }
 }
+
+function enquadrar() { centralizado = false; atualizar(); }
 
 function desenharMaquina(dados) {
   if (!map) return;
@@ -238,11 +248,15 @@ function desenharMaquina(dados) {
     L.polyline(dados.track, {color:cor, weight:2, opacity:.75}).addTo(camadaTrilha);
   }
   const m = dados.machine;
-  L.circleMarker([m.latitude, m.longitude], {
+  const posicao = [m.latitude, m.longitude];
+  L.circleMarker(posicao, {
     radius:8, color:'#fff', weight:2, fillColor:cor, fillOpacity:1
   }).addTo(camadaTrilha).bindTooltip(
     `${m.machine_id} · ${m.engine_on ? 'motor ligado' : 'motor desligado'}` +
     (m.segment_id ? ` · ${m.segment_id} estaca ${num(m.chainage_m,1)} m` : ' · fora do corredor'));
+  // A maquina sai do corredor varias vezes no dia (posto, jazida). O mapa a segue
+  // quando ela some da tela, em vez de deixar o replay andar num canto invisivel.
+  if (centralizado && !map.getBounds().contains(posicao)) map.panTo(posicao, {animate:true});
 }
 
 function indicadores(d) {
