@@ -162,6 +162,23 @@ A judge can:
 
 **Acceptance:** the demo completes the full evidence-to-confirmation loop.
 
+### P6 — V2 company platform
+
+This phase begins only after the hackathon MVP is validated.
+
+- [ ] Define a vendor-neutral telemetry adapter interface.
+- [ ] Add a machine registry with equipment class and manufacturer.
+- [ ] Support multiple concurrent machines and projects.
+- [ ] Add adapters for JCB, Caterpillar, Komatsu, and generic GPS/CSV/API feeds.
+- [ ] Replace SQLite/local photos with PostgreSQL and object storage.
+- [ ] Add authentication, roles, and project-level permissions.
+- [ ] Add live ingestion through APIs, webhooks, or scheduled connectors.
+- [ ] Configure operational rules by equipment class.
+- [ ] Add audit history and management reports.
+- [ ] Run a pilot with one active company project.
+
+**Acceptance:** at least two different equipment sources use the same canonical event pipeline without changing the engineering engine.
+
 ## Non-negotiable guardrails
 
 - GPS proximity is evidence of activity, not proof of installed quantity.
