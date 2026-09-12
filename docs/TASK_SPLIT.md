@@ -62,15 +62,89 @@ video, written description, social post, and acceptance of every engineering int
 
 Agreed before either side codes against them.
 
-- `events.detect(window) -> list[Event]` — Claude produces; Codex consumes. An `Event` carries
-  `event_id`, `event_type`, `timestamp`, `machine_id`, `segment_id`, `chainage_m`,
-  `distance_to_axis_m`, `engine_on`, `dwell_minutes`, `movement_m`, and `context`.
-- `storage` — Claude owns the schema and the write functions for telemetry, events and photo
-  evidence. Codex calls `storage.record_confirmation(...)` to persist an engineer reply;
-  Codex does not write SQL.
+### Deterministic event — Claude produces, Codex consumes
+
+```json
+{
+  "event_id": "evt_2022-06-28_003",
+  "event_type": "long_dwell",
+  "timestamp": "2022-06-28T14:30:00-03:00",
+  "machine_id": "JCB-3CX",
+  "segment_id": "TR-04",
+  "chainage_m": 182.5,
+  "distance_to_axis_m": 3.2,
+  "engine_on": true,
+  "moving": false,
+  "movement_m": 4.0,
+  "dwell_minutes": 95,
+  "context": {"rain_mm": 3.2, "planned_diameter_mm": 400, "planned_material": "concrete"}
+}
+```
+
+`event_id` is what makes the loop auditable: the question sent to the engineer, the reply,
+and the confirmed quantity all carry it, so any number on the dashboard can be traced back
+to the event that caused it. `event_type` tells the agent which situation it is looking at.
+`chainage_m` and `dwell_minutes` are what let the agent write "1h35 near chainage 182 m"
+without computing anything itself.
+
+### Agent interpretation — Codex produces
+
+```json
+{
+  "event_id": "evt_2022-06-28_003",
+  "evidence_type": "telegram_photo",
+  "activity": "pipe_installation_possible",
+  "confidence": 0.78,
+  "decision": "ask",
+  "message": "A foto parece mostrar assentamento no TR-04. Confirma a execução?"
+}
+```
+
+`decision` is one of `ignore`, `log`, `notify`, `ask`.
+
+### Confirmed progress — Codex calls, Claude persists
+
+The README and the implementation plan disagreed on this record. This is the settled version.
+
+```json
+{
+  "event_id": "evt_2022-06-28_003",
+  "machine_id": "JCB-3CX",
+  "segment_id": "TR-04",
+  "confirmed_length_m": 32,
+  "status": "partially_completed",
+  "interruption_reason": "rain",
+  "confirmed_by": "telegram:123456789",
+  "source": "telegram",
+  "confirmed_at": "2022-06-28T17:40:00-03:00"
+}
+```
+
+`confirmed_by` records the human, never the model. A quantity with no human source is not
+written. Codex calls `storage.record_confirmation(...)`; Codex does not write SQL.
+
+### Other boundaries
+
 - `tools.py` — Codex defines the tool surface the model sees, and each tool calls an existing
   deterministic function. No tool computes geometry or quantities on its own.
 - `config.py` — Claude owns it. Need a new setting? Ask; do not edit.
+
+## Commit convention
+
+```text
+feat(claude): add telemetry parquet ingestion
+feat(codex): add telegram photo handler
+review(codex): validate geospatial output contract
+review(claude): validate agent database integration
+```
+
+## Scope notes
+
+- The demo project ships as a fixed KML in the repository. Upload through Streamlit is
+  optional and last: it needs authentication, and a public dashboard that overwrites the
+  active project is a liability during judging.
+- Historical rain from Open-Meteo Archive is in scope; it is one keyless call and it carries
+  the demo narrative. Terrain elevation is out of scope for the MVP — it adds nothing visible.
 
 ## Working rules
 
