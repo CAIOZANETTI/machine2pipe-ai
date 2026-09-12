@@ -40,6 +40,13 @@ out of scope for both agents.
 | `scripts/make_demo_kml.py` | provisional KML over the real 28/06 route |
 | `tests/test_adapter_*.py`, `test_geo_*.py`, `test_events_*.py` | |
 
+### Ownership change — 2026-09-12, approved by Caio
+
+With the submission window at about eleven hours and `agent.py`, `tools.py` and
+`vision.py` still absent, Caio moved the agent layer to Claude. The table below keeps the
+original split for the record; the files in it are now Claude's, and Codex should not edit
+them without saying so here first. Codex keeps `research_exa.py`, which nothing depends on.
+
 ### Codex — interaction, AI, integration
 
 | File | Scope |
