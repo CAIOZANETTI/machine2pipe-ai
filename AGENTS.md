@@ -44,10 +44,31 @@ AI may perform:
 
 AI must never calculate authoritative engineering quantities, infer installed length from presence alone, or claim measured depth from an unscaled image.
 
+## Main branch workflow
+
+All project work is committed directly to `main`.
+
+Before editing:
+
+1. fetch the latest `main`;
+2. inspect recent commits;
+3. select an unchecked backlog item;
+4. confirm that another agent is not changing the same files.
+
+Before pushing:
+
+1. run the relevant tests;
+2. review the diff for secrets and unrelated changes;
+3. use a small descriptive commit;
+4. update `docs/CONTRIBUTIONS.md`;
+5. push without rewriting history.
+
+Never force-push, reset, or revert another contributor's work without Caio's explicit approval. If `main` changed during the task, integrate the new work before pushing.
+
 ## Collaboration rules
 
 - Work on one backlog item at a time.
-- State the targeted backlog item in the commit or pull-request description.
+- State the targeted backlog item in the commit description.
 - Prefer small, reviewable commits.
 - Do not silently change a data contract.
 - Add or update tests for deterministic logic.
@@ -68,8 +89,8 @@ Before starting:
 
 Suggested ownership split:
 
-- **Agent A — platform/data:** deployment, configuration, SQLite, Parquet, KML/KMZ, geospatial calculations.
-- **Agent B — interaction/AI:** Telegram, photos, vision output, agent tools, Exa integration.
+- **Claude — platform/data:** deployment, configuration, SQLite, Parquet, KML/KMZ, and geospatial calculations.
+- **Codex — interaction/integration:** Telegram, photos, vision output, agent tools, Exa integration, review, and system integration.
 - **Caio — product/engineering:** KMZ scope, field meaning, historical ground truth, thresholds, and acceptance of engineering interpretations.
 
 ## Definition of done for a code change
