@@ -88,7 +88,21 @@ Reference implementations:
 
 These values provide context only. They are not survey-grade elevation or an on-site rain gauge.
 
-### 4. Engineer messages
+### 4. Field photos
+
+Source album: [2022 construction photos](https://photos.app.goo.gl/Bw5BuCvfpGf4eskXA)
+
+In operation, users send original photos to the Telegram bot. The system extracts capture time and GPS when available, matches the photo to the nearest project segment and telemetry window, and classifies it as:
+
+- execution evidence;
+- operational evidence;
+- technical evidence;
+- material/logistics evidence;
+- informative only.
+
+The vision model may describe visible conditions, but depth and installed quantity require a scale reference or engineer confirmation.
+
+### 5. Engineer messages
 
 Telegram supplies field information that telemetry cannot prove:
 
@@ -217,21 +231,29 @@ Planned commands:
 | `/summary` | Daily summary |
 | `/help` | Commands and limitations |
 
-For the hackathon MVP, the bot will run by long polling from a laptop or a small cloud worker. Telegram does not host the Python application.
+For the hackathon MVP, the bot will run by long polling inside the Railway worker. Telegram does not host the Python application.
+
+## Web deployment
+
+The MVP is web-first. The GitHub repository is deployed to Railway, so the application continues running when the developer's computer is off.
+
+- **Streamlit:** public dashboard and initial KML/KMZ upload.
+- **Worker:** telemetry replay, Telegram long polling, photo processing, and agent calls.
+- **Persistent volume:** SQLite database, uploaded project, and downloaded photos.
+- **External APIs:** Telegram, vision/language model, Exa, Open-Meteo, and OpenTopoData.
+
+Streamlit Community Cloud may be used later for a dashboard-only deployment, but it is not the primary runtime for the always-on worker.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A["Parquet telemetry"] --> D["Python engine"]
-    B["KML/KMZ project"] --> D
-    C["Elevation and weather"] --> D
-    D --> E["Structured events"]
-    E --> F["AI agent"]
-    X["Exa technical search"] -. only when needed .-> F
-    F <--> G["Telegram engineer"]
-    F --> H["JSONL/CSV records"]
-    H --> I["Streamlit dashboard"]
+    A["GitHub repository"] --> B["Railway service"]
+    B --> C["Streamlit dashboard"]
+    B --> D["Worker and agent"]
+    D <--> E["Telegram"]
+    B --> F["Persistent storage"]
+    D --> G["AI, Exa and weather APIs"]
 ```
 
 ## Technology
@@ -248,8 +270,9 @@ flowchart TD
 | Weather/elevation | Open-Meteo, OpenTopoData |
 | Dashboard | Streamlit, Plotly/PyDeck |
 | Validation | Pydantic |
-| MVP storage | JSONL/CSV |
+| MVP storage | SQLite + persistent volume |
 | Tests | pytest |
+| Hosting | Railway |
 
 > The Exa credit pays for Exa searches. A separate model provider is still required for language reasoning.
 
@@ -264,6 +287,8 @@ machine2pipe-ai/
 │   ├── config.py
 │   ├── events.py
 │   ├── replay.py
+│   ├── photos.py
+│   ├── storage.py
 │   ├── telegram_bot.py
 │   ├── tools.py
 │   ├── weather.py
@@ -276,11 +301,18 @@ machine2pipe-ai/
 │       └── loader.py
 ├── data/
 │   ├── sample/
+│   ├── photos/
 │   └── output/
+├── docs/
+│   └── IMPLEMENTATION_PLAN.md
 ├── tests/
 ├── .env.example
 ├── .gitignore
+├── AGENTS.md
+├── Dockerfile
+├── railway.toml
 ├── requirements.txt
+├── start.sh
 └── worker.py
 ```
 
@@ -288,7 +320,9 @@ machine2pipe-ai/
 
 ```dotenv
 TELEMETRY_URL=
-PROJECT_KMZ_PATH=data/sample/project.kmz
+PROJECT_KMZ_PATH=/data/project.kmz
+DATABASE_PATH=/data/machine2pipe.db
+PHOTO_STORAGE_PATH=/data/photos
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
@@ -309,6 +343,15 @@ Never commit API keys, Telegram tokens, private files, or an unapproved telemetr
 
 ## Build plan
 
+### Phase 0 — Deploy the web foundation
+
+- [ ] Add Dockerfile, Railway configuration, start command, and health check.
+- [ ] Create the persistent `/data` volume.
+- [ ] Configure secrets outside GitHub.
+- [ ] Deploy a minimal Streamlit dashboard and worker.
+
+**Deliverable:** public dashboard and always-on worker running from GitHub.
+
 ### Phase 1 — Prove the data connection
 
 - [ ] Audit the real Parquet columns and dates.
@@ -325,13 +368,17 @@ Never commit API keys, Telegram tokens, private files, or an unapproved telemetr
 - [ ] Calculate chainage, distance, movement, and dwell.
 - [ ] Implement configurable event rules.
 - [ ] Add elevation and historical weather.
-- [ ] Write structured events to JSONL.
+- [ ] Write structured events to SQLite.
 
 **Deliverable:** reproducible events without AI.
 
 ### Phase 3 — Put the agent in Telegram
 
 - [ ] Create the Telegram bot.
+- [ ] Receive and store original photos.
+- [ ] Extract EXIF time and GPS.
+- [ ] Match photos to segments and telemetry windows.
+- [ ] Add vision classification with confidence and limitations.
 - [ ] Implement status and progress commands.
 - [ ] Connect the language model.
 - [ ] Expose approved Python tools to the agent.
@@ -354,8 +401,8 @@ Never commit API keys, Telegram tokens, private files, or an unapproved telemetr
 The MVP is complete when one reproducible demonstration proves this sequence:
 
 ```text
-real Parquet → project segment → deterministic event → agent decision
-→ Telegram question → engineer reply → confirmed record → dashboard update
+real Parquet + KML/KMZ + photo → matched project segment → deterministic event
+→ agent decision → Telegram question → engineer reply → confirmed record → dashboard update
 ```
 
 ## Critical limitations
