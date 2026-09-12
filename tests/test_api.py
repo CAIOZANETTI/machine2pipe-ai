@@ -47,3 +47,12 @@ def test_pular_para_um_evento_revela_a_historia_ate_ali(cliente):
 
 def test_evento_inexistente_falha_visivelmente(cliente):
     assert cliente.post("/api/replay/jump/evt_inexistente").status_code == 404
+
+
+def test_fotos_so_aparecem_depois_de_capturadas(cliente):
+    inicio = cliente.get("/api/state").json()
+    assert inicio["photos"] == [], "no inicio do dia nenhuma foto foi tirada ainda"
+
+
+def test_foto_inexistente_falha_visivelmente(cliente):
+    assert cliente.get("/api/photo/album_00000000_000000").status_code == 404

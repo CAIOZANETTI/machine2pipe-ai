@@ -12,7 +12,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from machine2pipe import events, replay, storage
+from machine2pipe import events, replay, storage, weather
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -41,6 +41,18 @@ def _day():
     storage.initialize()
     storage.record_events(detected)
     return project, matched, detected
+
+
+@lru_cache(maxsize=1)
+def _weather():
+    """Chuva do dia. Contexto para o agente, nunca prova de parada."""
+    _, matched, _ = _day()
+    return weather.fetch(
+        config.replay_date,
+        float(matched.latitude.mean()),
+        float(matched.longitude.mean()),
+        timezone=config.timezone,
+    )
 
 
 @app.on_event("startup")
@@ -72,6 +84,18 @@ def _segments_payload(project) -> list[dict]:
     ]
 
 
+@app.get("/api/photo/{photo_id}")
+def photo(photo_id: str) -> FileResponse:
+    frame = storage.photos_frame()
+    linha = frame[frame.photo_id == photo_id] if not frame.empty else frame
+    if linha.empty or not linha.iloc[0].file_path:
+        raise HTTPException(404, f"foto desconhecida: {photo_id}")
+    caminho = Path(linha.iloc[0].file_path)
+    if not caminho.exists():
+        raise HTTPException(404, f"arquivo ausente: {caminho.name}")
+    return FileResponse(caminho, media_type="image/jpeg")
+
+
 @app.get("/api/state")
 def state() -> JSONResponse:
     project, matched, detected = _day()
@@ -88,6 +112,9 @@ def state() -> JSONResponse:
     )
 
     photos = storage.photos_frame()
+    if not photos.empty:
+        capturadas = pd.to_datetime(photos.captured_at, format="ISO8601", utc=True)
+        photos = photos[capturadas <= now.tz_convert("UTC")]
     clock = replay.load()
 
     return JSONResponse(
@@ -134,6 +161,7 @@ def state() -> JSONResponse:
             "events": [
                 event.to_dict() for event in detected if pd.Timestamp(event.timestamp) <= now
             ],
+            "weather": _weather().to_dict() if _weather().available else None,
             "photos": photos.to_dict("records") if not photos.empty else [],
         }
     )

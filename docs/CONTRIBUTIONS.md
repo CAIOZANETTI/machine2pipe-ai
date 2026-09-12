@@ -22,6 +22,7 @@ Add one row for each meaningful code or documentation delivery.
 | 2026-09-12 | Caio + Claude | P2 — Events and storage | `pending` | events.py, storage.py, app/streamlit_app.py | Deterministic event rules firing once per episode; dwell measured as time within a radius rather than point-to-point movement; SQLite with WAL, idempotent event writes and a confirmation record that refuses any quantity without a human source; 20 passing tests |
 | 2026-09-12 | Caio + Codex | Telegram and photo ingestion | this commit | `worker.py`, Telegram client, EXIF pipeline, tests | Added long polling, bot commands, chat allowlist, photo/document download, safe storage, conservative EXIF handling, and six new tests |
 | 2026-09-12 | Caio + Claude | P2 — Panel and replay | `pending` | api.py, replay.py, web/index.html, start.sh | Streamlit replaced by a FastAPI service rendering the panel and the API from one Railway service, removing the need to share a database across two clouds; replay clock with start/pause/reset and jump-to-event for recording; validated three-hue palette with light and dark modes; 26 passing tests |
+| 2026-09-12 | Caio + Claude | P2 — Weather and photo evidence | `pending` | weather.py, scripts/seed_photos.py, api.py, web/index.html | Open-Meteo archive as day context with explicit limits and graceful failure; the album's real photos matched to segment and chainage by capture time against telemetry, with photo GPS as a cross-check (20-53 m agreement on 28/06); photo markers and image serving on the panel; 39 tests |
 
 ## Attribution rules
 

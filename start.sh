@@ -5,6 +5,9 @@ set -euo pipefail
 
 mkdir -p "$(dirname "${DATABASE_PATH:-/data/machine2pipe.db}")" "${PHOTO_STORAGE_PATH:-/data/photos}"
 
+# Carga das fotos do album: idempotente e o volume persiste, entao so baixa na primeira vez.
+python scripts/seed_photos.py || echo "aviso: carga de fotos falhou; o replay segue sem elas"
+
 python -m machine2pipe.worker &
 WORKER_PID=$!
 trap 'kill "$WORKER_PID" 2>/dev/null || true' EXIT

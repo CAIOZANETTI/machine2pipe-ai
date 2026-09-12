@@ -132,6 +132,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
       <span><i style="background:var(--machine)"></i>Trilha percorrida</span>
       <span><i class="dot" style="background:var(--machine)"></i>Posição atual</span>
       <span><i class="dot" style="background:var(--project);opacity:.55"></i>Poço de visita</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--text-secondary);vertical-align:middle;margin-right:6px"></span>Foto de campo</span>
       <span id="corridor"></span>
     </div>
   </section>
@@ -166,7 +167,7 @@ const TIPOS = {
 const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 const num = (v, d=0) => (v ?? 0).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
 
-let map, camadaProjeto, camadaTrilha, marcador, centralizado = false;
+let map, camadaProjeto, camadaTrilha, camadaFotos, centralizado = false;
 
 function iniciarMapa() {
   map = L.map('map', {zoomControl:true, attributionControl:true});
@@ -176,6 +177,27 @@ function iniciarMapa() {
   map.setView([-26.6034, -51.0984], 16);
   camadaProjeto = L.layerGroup().addTo(map);
   camadaTrilha = L.layerGroup().addTo(map);
+  camadaFotos = L.layerGroup().addTo(map);
+}
+
+function desenharFotos(dados) {
+  camadaFotos.clearLayers();
+  (dados.photos || []).forEach(f => {
+    if (f.latitude == null) return;
+    const partes = [`<b>${hora(f.captured_at)}</b>`];
+    if (f.segment_id) partes.push(`${f.segment_id} · estaca ${num(f.chainage_m,0)} m`);
+    if (f.telemetry_delta_seconds != null)
+      partes.push(`telemetria a ${num(Math.abs(f.telemetry_delta_seconds))} s`);
+    partes.push(f.visual_class ? `${f.visual_class} (${num(100*f.confidence)}%)` : 'aguardando leitura visual');
+    L.marker([f.latitude, f.longitude], {icon: L.divIcon({
+      className:'', iconSize:[22,22],
+      html:`<div style="width:22px;height:22px;border-radius:5px;background:var(--text-secondary);
+             border:2px solid var(--surface-1);display:grid;place-items:center;font-size:11px">📷</div>`
+    })}).addTo(camadaFotos).bindPopup(
+      `<img src="/api/photo/${f.photo_id}" style="width:260px;border-radius:6px;display:block;margin-bottom:6px">
+       <div style="font-size:12px;line-height:1.5">${partes.join('<br>')}</div>`,
+      {maxWidth:280});
+  });
 }
 
 function desenharProjeto(dados) {
@@ -216,7 +238,8 @@ function indicadores(d) {
     ['Trecho ativo', m.segment_id || '—', m.segment_id ? `estaca ${num(m.chainage_m,1)} m · ${num(m.distance_to_axis_m,1)} m do eixo` : 'fora do corredor'],
     ['Motor', m.engine_on ? 'Ligado' : 'Desligado', m.event_type ? m.event_type.replace(/_/g,' ') : ''],
     ['Jornada', `${num(m.shift_hours,1)} h`, `${m.points} pontos de telemetria`],
-    ['Deslocamento', `${num(m.distance_km,2)} km`, 'acumulado no dia'],
+    ['Deslocamento', `${num(m.distance_km,2)} km`, d.weather && d.weather.rain_mm ? `chuva ${num(d.weather.rain_mm,1)} mm no dia` : 'acumulado no dia'],
+    ['Fotos de campo', String((d.photos||[]).length), 'casadas por horário'],
     ['Confirmado', `${num(confirmado)} m`, `de ${num(previsto)} m previstos`],
     ['Aguardando engenheiro', String(pendentes), pendentes ? 'perguntas em aberto' : 'nada pendente'],
   ];
@@ -273,7 +296,7 @@ async function atualizar() {
     document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
     document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
-    desenharProjeto(d); desenharMaquina(d); indicadores(d); linhaDoTempo(d); trechos(d);
+    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d);
   } catch (erro) {
     document.getElementById('speed').textContent = 'sem resposta da API';
   }
