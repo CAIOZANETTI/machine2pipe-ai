@@ -227,3 +227,35 @@ def test_pergunta_menor_nao_substitui_avanco(index, campo, banco):
     decisao = campo.handle_event({**base, "event_id": "evt_parada", "event_type": "long_dwell"})
     assert decisao.decision == agent.LOG
     assert campo.pending["event_id"] == "evt_avanco"
+
+
+def test_texto_livre_sem_modelo_devolve_o_status(campo):
+    resposta = campo.on_text({"from": {"id": 42}}, "quantos metros ja foram assentados?")
+    assert "confirmados de 255 m" in resposta
+    assert storage.confirmations_frame().empty
+
+
+def test_texto_livre_com_modelo_responde_a_partir_do_contexto(index, campo, monkeypatch):
+    visto = {}
+
+    def modelo(messages, **kwargs):
+        visto["prompt"] = messages[0]["content"]
+        return {"answer": "Até agora nada confirmado; a máquina está na frente da estaca 126."}
+
+    monkeypatch.setattr(llm, "available", lambda: True)
+    monkeypatch.setattr(llm, "structured", modelo)
+    inicio, _ = index.day_bounds
+    replay.jump_to(inicio + pd.Timedelta(hours=9), inicio)
+    resposta = campo.on_text({"from": {"id": 42}}, "o que a máquina fez até agora?")
+    assert resposta.startswith("Até agora")
+    assert '"confirmado": []' in visto["prompt"], "o contexto deterministico vai inteiro ao modelo"
+    assert "frentes_de_servico" in visto["prompt"]
+    assert storage.confirmations_frame().empty, "conversa nao grava quantidade"
+
+
+def test_pergunta_do_engenheiro_nao_fecha_a_pergunta_do_agente(index, campo, monkeypatch):
+    campo.handle_event(evento_de_avanco(index))
+    resposta = campo.on_text({"from": {"id": 42}}, "que horas sao na obra?")
+    assert campo.pending is not None
+    assert "Pergunta em aberto" in resposta
+    assert storage.confirmations_frame().empty

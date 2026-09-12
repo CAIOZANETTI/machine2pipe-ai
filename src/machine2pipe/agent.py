@@ -300,6 +300,53 @@ def decide(
     )
 
 
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string", "description": "Resposta curta em portugues do Brasil."}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
+
+ANSWER_PROMPT = """Voce e o agente de campo do Machine2Pipe AI numa obra de drenagem (tubo de
+concreto DN400 em Calmon/SC). O engenheiro te escreveu no Telegram. Responda em portugues do
+Brasil, curto, como colega de obra, usando SOMENTE o contexto abaixo — ele vem da telemetria
+real e do banco, e e a unica fonte de verdade.
+
+Regras que nao se negociam:
+- Quantidade executada so existe se estiver em "confirmado"; o resto e leitura de
+  comportamento, nao metro assentado. Nunca estime metros, profundidade ou diametro.
+- Se a pergunta pedir algo que o contexto nao tem, diga que nao tem e o que voce tem.
+- Se houver pergunta em aberto, lembre-a ao final em uma frase.
+- O "hoje" do engenheiro e o dia do replay, nao a data real."""
+
+
+def answer(question: str, *, context: dict[str, Any], fallback: str) -> str:
+    """Responde uma mensagem livre do engenheiro a partir do contexto deterministico.
+
+    Sem modelo, devolve `fallback` — o /status — em vez de fingir que entendeu. O modelo
+    nao tem ferramentas aqui de proposito: tudo o que ele pode dizer ja esta no contexto,
+    entao o que ele nao pode fazer e inventar.
+    """
+    if not llm.available():
+        return fallback
+    conteudo = (
+        f"{ANSWER_PROMPT}\n\nContexto:\n{json.dumps(context, ensure_ascii=False, default=str)}"
+        f"\n\nMensagem do engenheiro:\n{question.strip()}"
+    )
+    try:
+        dados = llm.structured(
+            [{"role": "user", "content": conteudo}],
+            schema=ANSWER_SCHEMA,
+            schema_name="resposta_ao_engenheiro",
+            max_tokens=350,
+        )
+    except llm.LLMUnavailable as erro:
+        log.warning("resposta pelo modelo indisponivel: %s", erro)
+        return fallback
+    texto = str(dados.get("answer", "")).strip()
+    return texto or fallback
+
+
 NUMBER = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:m\b|metros?\b)", re.IGNORECASE)
 BARE_NUMBER = re.compile(r"\b(\d+(?:[.,]\d+)?)\b")
 REASONS = {
