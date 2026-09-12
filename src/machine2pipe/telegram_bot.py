@@ -155,7 +155,9 @@ class TelegramBot:
                 "/whoami — seu chat ID\n\n"
                 "Envie uma foto: eu situo no trecho e na estaca pela telemetria, leio o que "
                 "aparece e guardo como evidência. Responda às minhas perguntas em texto "
-                "livre, com os metros executados ou o motivo da parada.",
+                "livre, com os metros executados ou o motivo da parada. E pergunte o que "
+                "quiser sobre o dia — eu respondo com o que a telemetria e o banco têm, "
+                "nunca com número inventado.",
             )
             return
         if text == "/whoami":

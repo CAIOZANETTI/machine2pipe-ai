@@ -308,21 +308,57 @@ class FieldAgent:
             linhas.append("Nenhuma pergunta em aberto.")
         return "\n".join(linhas)
 
+    def context(self) -> dict[str, Any]:
+        """O que o agente sabe neste instante, para responder uma mensagem livre."""
+        agora = self.simulated_now()
+        ate_aqui = activity.until(self.index.episodes, agora)
+        activity.attach_photos(ate_aqui, storage.photos_frame())
+        resumo = activity.summary(ate_aqui)
+        progresso = storage.confirmed_progress()
+        confirmado = (
+            progresso[["segment_id", "confirmed_length_m", "confirmations"]].to_dict("records")
+            if not progresso.empty else []
+        )
+        with self.lock:
+            pergunta = self.pending
+        return {
+            "dia_do_replay": f"{agora:%d/%m/%Y}",
+            "hora_na_obra": f"{agora:%H:%M}",
+            "replay": replay.load().status,
+            "maquina": config.machine_id,
+            "projeto": [
+                {"trecho": seg.segment_id, "planejado_m": seg.attributes.get("planned_length_m"),
+                 "diametro_mm": seg.attributes.get("diameter_mm"), "material": seg.attributes.get("material")}
+                for seg in self.index.project.segments
+            ],
+            "agora": ate_aqui[-1].describe() if ate_aqui else "nada ainda",
+            "horas_por_estado": resumo["hours"],
+            "frentes_de_servico": [f["summary"] for f in resumo["fronts"] if f["minutes"] >= 5],
+            "fotos_arquivadas": int(len(storage.photos_frame())),
+            "confirmado": confirmado,
+            "pergunta_em_aberto": (pergunta or {}).get("message"),
+        }
+
     def on_text(self, message: dict[str, Any], text: str) -> str | None:
-        """Resposta do engenheiro. So vira quantidade se houver pergunta em aberto."""
+        """Texto do engenheiro: resposta a pergunta em aberto, ou conversa livre.
+
+        Com pergunta em aberto, o texto e lido primeiro como resposta; so vira quantidade
+        se for conclusivo. Sem pergunta, ou quando o texto nao responde a ela, o agente
+        conversa a partir do que sabe — e o que sabe e o contexto deterministico, nada mais.
+        """
         with self.lock:
             pergunta = self.pending
         if not pergunta:
-            return (
-                "Anotado. Nao ha pergunta em aberto agora — quando a maquina registrar "
-                "avanco sem confirmacao eu pergunto por aqui."
-            )
+            return agent.answer(text, context=self.context(), fallback=self.status())
 
         leitura = agent.read_reply(text, question=pergunta.get("message"))
         if not leitura.conclusive:
-            # Sem conclusao a pergunta continua aberta: uma resposta ambigua nao pode virar
-            # registro, e insistir uma vez custa menos que um numero errado no painel.
-            return leitura.acknowledgement
+            # Nao respondeu a pergunta: pode ser uma pergunta dele. A pergunta continua
+            # aberta — uma resposta ambigua nao pode virar registro — e o agente conversa.
+            return agent.answer(
+                text, context=self.context(),
+                fallback=f"{leitura.acknowledgement}\n\nPergunta em aberto: {pergunta.get('message')}",
+            )
 
         trecho = pergunta.get("segment_id")
         if not trecho:
