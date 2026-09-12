@@ -58,14 +58,19 @@ def test_foto_inexistente_falha_visivelmente(cliente):
     assert cliente.get("/api/photo/album_00000000_000000").status_code == 404
 
 
-def test_health_denuncia_chat_id_nao_numerico(cliente, monkeypatch):
+@pytest.mark.parametrize(
+    "valor, valido",
+    [
+        ("machine2pipe_ai_bot", False),  # o nome do bot no lugar do numero do chat
+        ("123456789", True),
+        ("123456789, -100200300", True),  # grupos tem id negativo
+        ("", True),  # vazio e legitimo ate o /whoami responder
+    ],
+)
+def test_health_denuncia_chat_id_nao_numerico(cliente, monkeypatch, valor, valido):
+    from dataclasses import replace
+
     from machine2pipe import api
 
-    monkeypatch.setattr(api.config, "telegram_chat_id", "machine2pipe_ai_bot")
-    assert cliente.get("/health").json()["telegram_allowlist_valid"] is False
-
-    monkeypatch.setattr(api.config, "telegram_chat_id", "123456789, -100200300")
-    assert cliente.get("/health").json()["telegram_allowlist_valid"] is True
-
-    monkeypatch.setattr(api.config, "telegram_chat_id", "")
-    assert cliente.get("/health").json()["telegram_allowlist_valid"] is True
+    monkeypatch.setattr(api, "config", replace(api.config, telegram_chat_id=valor))
+    assert cliente.get("/health").json()["telegram_allowlist_valid"] is valido
