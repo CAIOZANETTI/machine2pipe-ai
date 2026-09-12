@@ -430,6 +430,6 @@ This hackathon project builds on public work created by Caio Zanetti:
 - [gps_maquina](https://github.com/CAIOZANETTI/gps_maquina) — real JCB 3CX telemetry and operational analysis from 2022.
 - [kml_saneamento](https://github.com/CAIOZANETTI/kml_saneamento) — KML sanitation-network parsing and QA/QC.
 - [kml-earthworks](https://github.com/CAIOZANETTI/kml-earthworks) — alignment, chainage, elevation, and terrain profiles.
-- [kml_poligono](https://github.com/CAIOZANETTI/kml_poligono) — polygon and_PAD — polygon and earthworks geospatial analysis.
+- [kml_poligono](https://github.com/CAIOZANETTI/kml_poligono) — polygon and earthworks geospatial analysis.
 
 The agent, Telegram workflow, telemetry-to-project matching, and confirmation loop are new work for Machine2Pipe AI.
