@@ -165,3 +165,19 @@ def test_estado_oferece_os_momentos_do_dia_inteiro(cliente):
     estado = cliente.get("/api/state").json()
     assert len(estado["all_events"]) == 18, "atalhos de tempo mostram o dia inteiro, nao so o passado"
     assert estado["events"] == [], "a linha do tempo continua respeitando o relogio"
+
+
+def test_foto_sem_estaca_nem_leitura_nao_derruba_o_painel(cliente, tmp_path):
+    """Foto do Telegram sem EXIF e fora do corredor: chainage e confidence chegam NaN."""
+    from machine2pipe import storage
+    storage.record_photo({
+        "photo_id": "telegram_sem_nada", "captured_at": "2022-06-28T05:21:00-03:00",
+        "latitude": -26.6032, "longitude": -51.0977, "segment_id": None, "chainage_m": None,
+        "distance_to_segment_m": 32.9, "telemetry_delta_seconds": 0.0, "visual_class": None,
+        "confidence": None, "source": "telegram", "file_path": str(tmp_path / "x.jpg"),
+    })
+    resposta = cliente.get("/api/state")
+    assert resposta.status_code == 200, resposta.text[:200]
+    fotos = [f for f in resposta.json()["all_photos"] if f["photo_id"] == "telegram_sem_nada"]
+    assert fotos, "a foto entra no payload, com os campos vazios como null"
+    assert "NaN" not in resposta.text
