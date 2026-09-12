@@ -6,6 +6,7 @@ exatamente o que a conversa no Telegram gravou, sem ponte entre nuvens diferente
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -137,8 +138,26 @@ def telegram_check() -> JSONResponse:
         return JSONResponse({"token_present": False,
                              "diagnosis": "TELEGRAM_BOT_TOKEN ausente no container"})
 
-    base = f"https://api.telegram.org/bot{config.telegram_bot_token}"
-    resultado: dict[str, object] = {"token_present": True}
+    bruto = config.telegram_bot_token
+    token = bruto.strip()
+    # A parte antes dos dois-pontos e o id publico do bot, nao um segredo. Descrever
+    # formato e comprimento distingue "valor novo nao aplicado" de "valor novo errado"
+    # sem colocar o token na resposta.
+    forma = re.match(r"^(\d{6,12}):[A-Za-z0-9_-]{30,}$", token)
+    resultado: dict[str, object] = {
+        "token_present": True,
+        "token_shape_valid": bool(forma),
+        "token_bot_id": forma.group(1) if forma else None,
+        "token_length": len(token),
+        "token_had_surrounding_whitespace": bruto != token,
+    }
+    if not forma:
+        resultado["diagnosis"] = (
+            "o valor nao tem a forma de um token: esperado numero, dois-pontos e 35 caracteres"
+        )
+        return JSONResponse(resultado)
+
+    base = f"https://api.telegram.org/bot{token}"
     try:
         me = requests.get(f"{base}/getMe", timeout=15).json()
         resultado["token_accepted"] = bool(me.get("ok"))

@@ -85,3 +85,23 @@ def test_diagnostico_do_telegram_sem_token(cliente, monkeypatch):
     corpo = cliente.get("/api/telegram/check").json()
     assert corpo["token_present"] is False
     assert "ausente" in corpo["diagnosis"]
+
+
+@pytest.mark.parametrize(
+    "token, forma_valida",
+    [
+        ("8847159810:AAG4g46DXI4u7ZyyAdlLrlPeL0WKjy18FwU", True),
+        ("s8847159810:AAG4g46DXI4u7ZyyAdlLrlPeL0WKjy18FwU", False),  # o 's' colado na frente
+        ("8847159810", False),  # so o numero, sem a chave
+        ("AAG4g46DXI4u7ZyyAdlLrlPeL0WKjy18FwU", False),  # so a chave, sem o numero
+    ],
+)
+def test_diagnostico_descreve_a_forma_do_token(cliente, monkeypatch, token, forma_valida):
+    from dataclasses import replace
+
+    from machine2pipe import api
+
+    monkeypatch.setattr(api, "config", replace(api.config, telegram_bot_token=token))
+    corpo = cliente.get("/api/telegram/check").json()
+    assert corpo["token_shape_valid"] is forma_valida
+    assert token not in str(corpo), "o token nunca pode aparecer na resposta"
