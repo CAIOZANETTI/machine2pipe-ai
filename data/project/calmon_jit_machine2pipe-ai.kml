@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document id="1AxktfRe0YqqKtn-7T0XMgNEnYQQTGYa8">
+	<name>calmon_jit_machine2pipe-ai</name>
+	<gx:CascadingStyle kml:id="__managed_style_2C53A16F1541CBE36F9E_highlight">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2f2fd3</color>
+				<width>12</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_09A29FD21041CBE36F9E">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_09A29FD21041CBE36F9E_normal</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_09A29FD21041CBE36F9E_highlight</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="__managed_style_057E2B202841CBE36F9C">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_057E2B202841CBE36F9C_normal</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_057E2B202841CBE36F9C_highlight</styleUrl>
+		</Pair>
+	</StyleMap>
+	<gx:CascadingStyle kml:id="__managed_style_057E2B202841CBE36F9C_highlight">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_057E2B202841CBE36F9C_normal">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_09A29FD21041CBE36F9E_highlight">
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_19C474FD4D41CBE36F9E_highlight">
+		<styleUrl>https://earth.google.com/balloon_components/base/1.1.0.0/card_template.kml#main</styleUrl>
+		<Style>
+			<IconStyle>
+				<scale>1.2</scale>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>6</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_19C474FD4D41CBE36F9E_normal">
+		<styleUrl>https://earth.google.com/balloon_components/base/1.1.0.0/card_template.kml#main</styleUrl>
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<gx:CascadingStyle kml:id="__managed_style_2C53A16F1541CBE36F9E_normal">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2f2fd3</color>
+				<width>8</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<StyleMap id="__managed_style_19C474FD4D41CBE36F9E">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_19C474FD4D41CBE36F9E_normal</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_19C474FD4D41CBE36F9E_highlight</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="__managed_style_2C53A16F1541CBE36F9E">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#__managed_style_2C53A16F1541CBE36F9E_normal</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#__managed_style_2C53A16F1541CBE36F9E_highlight</styleUrl>
+		</Pair>
+	</StyleMap>
+	<gx:CascadingStyle kml:id="__managed_style_09A29FD21041CBE36F9E_normal">
+		<Style>
+			<IconStyle>
+				<Icon>
+					<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>
+				</Icon>
+				<hotSpot x="64" y="128" xunits="pixels" yunits="insetPixels"/>
+			</IconStyle>
+			<LabelStyle>
+			</LabelStyle>
+			<LineStyle>
+				<color>ff2dc0fb</color>
+				<width>4</width>
+			</LineStyle>
+			<PolyStyle>
+				<color>40ffffff</color>
+			</PolyStyle>
+			<BalloonStyle>
+			</BalloonStyle>
+		</Style>
+	</gx:CascadingStyle>
+	<Placemark id="0E6F8304C341CB7C4379">
+		<name>posto_gasolina</name>
+		<description><![CDATA[<div>local onde a maquina é abastecida</div>]]></description>
+		<LookAt>
+			<longitude>-51.09697078307833</longitude>
+			<latitude>-26.59906911776447</latitude>
+			<altitude>1189.915544252867</altitude>
+			<heading>64.34686255461082</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>280.5916335548682</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_09A29FD21041CBE36F9E</styleUrl>
+		<Point>
+			<coordinates>-51.09688863046836,-26.59917347421143,1190.336030139894</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="01888B397A41CB7CC76E">
+		<name>canteiro</name>
+		<description><![CDATA[<div>local onde a maquina dorme, é o canteiro de obra</div>]]></description>
+		<LookAt>
+			<longitude>-51.09764108566549</longitude>
+			<latitude>-26.60331048294428</latitude>
+			<altitude>1192.154562877065</altitude>
+			<heading>64.34725126306441</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>69.68417677512662</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_19C474FD4D41CBE36F9E</styleUrl>
+		<Point>
+			<coordinates>-51.09762891643746,-26.60337765672182,1190.972472270604</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="078B168B8C41CB859F08">
+		<name>jazida_solo</name>
+		<description><![CDATA[<div>local onde era retirado o solo</div>]]></description>
+		<LookAt>
+			<longitude>-51.10013105568441</longitude>
+			<latitude>-26.59772178680434</latitude>
+			<altitude>1201.272978601682</altitude>
+			<heading>64.34834065408684</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>349.2890414204521</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_057E2B202841CBE36F9C</styleUrl>
+		<Point>
+			<coordinates>-51.10014109448448,-26.59804374255266,1196.360483702668</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark id="0AA58AB7AB41CB93DF87">
+		<name>tubo_concreto_40</name>
+		<description><![CDATA[<div>tubulação de concreto, executado em 28 jun 2022<br></div>]]></description>
+		<LookAt>
+			<longitude>-51.09750847027182</longitude>
+			<latitude>-26.60401991142258</latitude>
+			<altitude>1186.548552583422</altitude>
+			<heading>269.217810987932</heading>
+			<tilt>0</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>293.6406915272164</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_2C53A16F1541CBE36F9E</styleUrl>
+		<LineString>
+			<coordinates>
+				-51.09940984178807,-26.60461665271362,0 -51.09776108843891,-26.60357466682923,0 -51.09766191987437,-26.6035140559717,0 -51.09743790127747,-26.6038402912964,0 
+			</coordinates>
+		</LineString>
+	</Placemark>
+	<Placemark id="0E40598F8741CB94DA30">
+		<name>bueiro_triplo</name>
+		<description><![CDATA[<div>bueiro tripo de concreto executado, executado em 01 jul 2022<br></div>]]></description>
+		<LookAt>
+			<longitude>-51.09648899352572</longitude>
+			<latitude>-26.60455740336683</latitude>
+			<altitude>1183.878566697479</altitude>
+			<heading>-96.35728541964103</heading>
+			<tilt>9.684140650764018</tilt>
+			<gx:fovy>35</gx:fovy>
+			<range>158.1903489055367</range>
+			<altitudeMode>absolute</altitudeMode>
+		</LookAt>
+		<styleUrl>#__managed_style_057E2B202841CBE36F9C</styleUrl>
+		<Point>
+			<coordinates>-51.0964571223306,-26.60431351950691,1184.144599068344</coordinates>
+		</Point>
+	</Placemark>
+</Document>
+</kml>

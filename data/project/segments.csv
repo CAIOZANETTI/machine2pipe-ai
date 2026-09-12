@@ -1,0 +1,2 @@
+segment_id,name,service_type,diameter_mm,material,planned_length_m,planned_start,planned_end
+tubo_concreto_40,Tubulação de concreto DN400,drainage_pipe,400,concrete,255.06,2022-06-28,2022-06-28

@@ -28,6 +28,7 @@ Add one row for each meaningful code or documentation delivery.
 | 2026-09-12 | Caio + Claude | Agent work queue | `pending` | storage.py, api.py, docs/TASK_SPLIT.md | Pending-event queue for the agent loop, cleared by recording an agent action so a restarted replay never repeats a question; deployment diagnosed from /health (no variable reached the container); Open-Meteo confirms 0.0 mm of rain on the demo day, which rules out the rain phrasing |
 | 2026-09-12 | Claude | Cross review | `pending` | docs/REVIEWS.md | Reviewed the Codex Telegram and photo ingestion: allowlist fails open on an unset TELEGRAM_CHAT_ID, which is the live state of the deployed bot, and two documents sharing a filename overwrite each other, losing evidence silently |
 | 2026-09-12 | Claude | Status report | `pending` | docs/STATUS.md | Chain-level status: six of nine links working on real data, the three missing ones all in the agent layer; blockers ordered, with the deployed interfaces Codex can build against |
+| 2026-09-12 | Caio + Codex | P1 — Real project input | `pending` | `data/project/` | Preserved the original Google Earth KML; added its structured DN400 concrete attributes separately; validated one 255.06 m alignment, four reference points, and 208 of 296 telemetry records within the 25 m corridor |
 
 ## Attribution rules
 
