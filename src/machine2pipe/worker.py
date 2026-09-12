@@ -251,6 +251,45 @@ class FieldAgent:
                 }
         return " ".join(p for p in partes if p)
 
+    def status(self) -> str:
+        """/status: que dia da obra esta em replay, o que a maquina faz e o que ja foi confirmado.
+
+        E a resposta a "que dia e hoje?": o replay reproduz um dia de 2022 como se fosse
+        agora, e o engenheiro precisa saber em que ponto dele a conversa esta.
+        """
+        agora = self.simulated_now()
+        relogio = replay.load()
+        inicio, fim = self.index.day_bounds
+        estado = {replay.RUNNING: "em andamento", replay.PAUSED: "pausado", replay.STOPPED: "parado"}
+        linhas = [
+            f"Replay do dia {agora:%d/%m/%Y}, {estado.get(relogio.status, relogio.status)} "
+            f"a {relogio.speed:g}x: {agora:%H:%M} na obra "
+            f"(jornada {inicio:%H:%M}–{fim:%H:%M})."
+        ]
+        if relogio.status == replay.STOPPED:
+            linhas.append("Nada aconteceu ainda: inicie o replay no painel.")
+        ate_aqui = activity.until(self.index.episodes, agora)
+        if ate_aqui:
+            atual = ate_aqui[-1]
+            linhas.append(f"Agora: {atual.describe()}.")
+            linhas.append(f"Até aqui: {activity.narrative(ate_aqui, brief=True)}.")
+        progresso = storage.confirmed_progress()
+        for segmento in self.index.project.segments:
+            planejado = float(segmento.attributes.get("planned_length_m") or 0)
+            confirmado = 0.0
+            if not progresso.empty and (progresso.segment_id == segmento.segment_id).any():
+                confirmado = float(progresso[progresso.segment_id == segmento.segment_id].iloc[0].confirmed_length_m)
+            linhas.append(
+                f"{segmento.segment_id}: {confirmado:.0f} m confirmados de {planejado:.0f} m projetados."
+            )
+        with self.lock:
+            pergunta = self.pending
+        if pergunta:
+            linhas.append(f"Pergunta em aberto: {pergunta.get('message')}")
+        else:
+            linhas.append("Nenhuma pergunta em aberto.")
+        return "\n".join(linhas)
+
     def on_text(self, message: dict[str, Any], text: str) -> str | None:
         """Resposta do engenheiro. So vira quantidade se houver pergunta em aberto."""
         with self.lock:
@@ -368,7 +407,7 @@ def main() -> None:
         polling = threading.Thread(
             target=bot.run,
             args=(_stop_event,),
-            kwargs={"on_photo": campo.on_photo, "on_text": campo.on_text},
+            kwargs={"on_photo": campo.on_photo, "on_text": campo.on_text, "on_status": campo.status},
             name="telegram",
             daemon=True,
         )

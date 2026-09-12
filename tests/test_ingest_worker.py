@@ -191,3 +191,19 @@ def test_zerar_a_demonstracao_preserva_eventos_e_album(index, campo, tmp_path):
     assert len(storage.events_frame()) == 18
     assert list(storage.photos_frame().photo_id) == ["album_x"]
     assert len(storage.pending_events()) == 18, "a pergunta volta a ser feita no proximo ensaio"
+
+
+def test_status_diz_que_dia_e_e_o_que_a_maquina_faz(index, campo):
+    inicio, _ = index.day_bounds
+    replay.jump_to(inicio + pd.Timedelta(hours=8), inicio)  # 13:21 na obra
+    texto = campo.status()
+    assert "28/06/2022" in texto
+    assert "13:21" in texto
+    assert "frente de serviço" in texto
+    assert "0 m confirmados de 255 m" in texto
+    assert "Nenhuma pergunta em aberto" in texto
+
+
+def test_status_com_replay_parado_orienta(campo):
+    texto = campo.status()
+    assert "parado" in texto and "inicie o replay" in texto.lower()

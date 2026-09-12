@@ -41,6 +41,19 @@ became 42 m confirmed against 255 m planned, signed `telegram:<id>` and tied to 
 | P4 AI agent | ~85% | Exa research tool; audit log shown on the panel |
 | P5 Demo | ~20% | the live run, the video, the written description, the social post |
 
+## Tested against production (`ca91548`), 2026-09-12 ~17:30 BRT
+
+| Part | Result |
+|---|---|
+| Deploy | `/health` at `ca91548`, real KML, 18 events, 6 album photos in the database |
+| Telemetry + replay | jump to `evt_013` → 14:37 on site, machine at chainage 126.5 m, engine on, 175 points, 7.5 h shift, 13 events reached |
+| Behaviour reading | 3h29 at the front so far; the 12:57–14:10 front at 114–153 m carries both photographs |
+| Photos | two visible at 14:37 (12:59 and 13:01, chainage 114 m); `/api/photo/<id>` serves JPEG, ~3 MB each |
+| Telegram token | accepted, no webhook, bot answers `/start` and `/whoami` |
+| Telegram evidence and agent question | **not testable**: `TELEGRAM_CHAT_ID` missing, so evidence is refused and the agent has nowhere to ask |
+| Model | **not testable**: `OPENROUTER_API_KEY` missing; `/api/agent/check` says so |
+| Exa | not used anywhere: no key, no module, no call |
+
 ## Blocking, in order
 
 1. **Three variables are not in the container.** `/health` reports `TELEGRAM_CHAT_ID`,
