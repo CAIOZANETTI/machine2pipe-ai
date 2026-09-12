@@ -173,8 +173,9 @@ review(claude): validate agent database integration
 4. Run the tests that cover what you touched before pushing.
 5. Add a row to `docs/CONTRIBUTIONS.md` in the same commit.
 6. Never force-push, reset, or revert the other agent's work.
-7. Cross review: each agent reviews the other's commits and leaves the review as a comment on
-   the commit on GitHub, naming what was checked and what was found.
+7. Cross review: each agent reviews the other's work and records the review in
+   `docs/REVIEWS.md`, naming what was checked and what was found. An entry stays until its
+   owner resolves or rejects it, with a reason.
 
 ## Order of work
 
