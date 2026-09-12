@@ -306,11 +306,29 @@ def summary(episodios: list[Episode]) -> dict[str, Any]:
     }
 
 
-def narrative(episodios: list[Episode]) -> str:
-    """As frentes de servico em uma frase, para a pergunta do agente."""
+def narrative(episodios: list[Episode], *, brief: bool = False) -> str:
+    """As frentes de servico em uma frase.
+
+    Completa para o briefing e o painel; `brief` para a pergunta no Telegram, onde seis
+    frentes listadas viram uma parede de texto que ninguem le no celular.
+    """
     frentes = [e for e in episodios if e.state == FRENTE and e.minutes >= 5]
     if not frentes:
         return "nenhuma frente de serviço identificada até agora"
-    partes = [e.describe() for e in frentes]
-    total = sum(e.minutes for e in frentes)
-    return f"{_duracao(total)} em frente de serviço: " + "; ".join(partes)
+    total = _duracao(sum(e.minutes for e in frentes))
+    if not brief:
+        return f"{total} em frente de serviço: " + "; ".join(e.describe() for e in frentes)
+    com_estaca = [e for e in frentes if e.chainage_min_m is not None]
+    fotos = sum(len(e.photo_ids) for e in frentes)
+    faixa = ""
+    if com_estaca:
+        faixa = (
+            f" entre as estacas {min(e.chainage_min_m for e in com_estaca):.0f} e "
+            f"{max(e.chainage_max_m for e in com_estaca):.0f} m"
+        )
+    ultima = frentes[-1]
+    prova = f", {fotos} foto(s) como evidência" if fotos else ""
+    return (
+        f"{total} em frente de serviço{faixa} em {len(frentes)} frente(s){prova}; "
+        f"a última {ultima.describe()}"
+    )

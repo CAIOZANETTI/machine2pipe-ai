@@ -137,7 +137,7 @@ class FieldAgent:
         # dizer "trabalhou 3h entre as estacas 114 e 165" em vez de "houve um evento".
         ate_aqui = activity.until(self.index.episodes, pd.Timestamp(evento["timestamp"]))
         activity.attach_photos(ate_aqui, storage.photos_frame())
-        evento.setdefault("context", {})["activity"] = activity.narrative(ate_aqui)
+        evento.setdefault("context", {})["activity"] = activity.narrative(ate_aqui, brief=True)
         briefing, registro = tools.briefing(
             evento,
             project=self.index.project,

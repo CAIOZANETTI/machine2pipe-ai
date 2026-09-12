@@ -117,3 +117,12 @@ def test_narrativa_resume_as_frentes(dia):
     texto = activity.narrative(activity.episodes(casado, project=projeto))
     assert texto.startswith("5h")
     assert "estacas 114 e 153" in texto
+
+
+def test_narrativa_curta_cabe_no_telegram(dia):
+    casado, projeto = dia
+    curta = activity.narrative(activity.episodes(casado, project=projeto), brief=True)
+    assert curta.startswith("5h")
+    assert "entre as estacas 68 e 164 m" in curta
+    assert "a última frente de serviço" in curta
+    assert len(curta) < 300, curta
