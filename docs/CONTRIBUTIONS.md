@@ -21,6 +21,7 @@ Add one row for each meaningful code or documentation delivery.
 | 2026-09-12 | Caio + Claude | P2 — Geospatial engine | `pending` | geo/project_loader, geo/matching, geo/stationing, scripts/make_demo_kml | KML/KMZ parser reading ExtendedData, `key: value` descriptions and a CSV fallback, since Google Earth Web exports neither; segment matching with chainage and distance to axis in EPSG:31982; provisional 7-segment alignment derived from the real 28/06 route; 12 passing tests |
 | 2026-09-12 | Caio + Claude | P2 — Events and storage | `pending` | events.py, storage.py, app/streamlit_app.py | Deterministic event rules firing once per episode; dwell measured as time within a radius rather than point-to-point movement; SQLite with WAL, idempotent event writes and a confirmation record that refuses any quantity without a human source; 20 passing tests |
 | 2026-09-12 | Caio + Codex | Telegram and photo ingestion | this commit | `worker.py`, Telegram client, EXIF pipeline, tests | Added long polling, bot commands, chat allowlist, photo/document download, safe storage, conservative EXIF handling, and six new tests |
+| 2026-09-12 | Caio + Claude | P2 — Panel and replay | `pending` | api.py, replay.py, web/index.html, start.sh | Streamlit replaced by a FastAPI service rendering the panel and the API from one Railway service, removing the need to share a database across two clouds; replay clock with start/pause/reset and jump-to-event for recording; validated three-hue palette with light and dark modes; 26 passing tests |
 
 ## Attribution rules
 

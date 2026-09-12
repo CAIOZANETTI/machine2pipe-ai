@@ -12,3 +12,4 @@ data/output/*
 .pytest_cache/
 .ipynb_checkpoints/
 .DS_Store
+data/replay_state.json

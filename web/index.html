@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machine2Pipe AI</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3f0; --surface-1: #fcfcfb; --surface-2: #ebeae6;
+  --border: #dcdbd6;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #78766f;
+  --project: #2a78d6; --machine: #eb6834; --confirmed: #1baf7a;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --surface-2: #262625;
+    --border: #383835;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e85;
+    --project: #3987e5; --machine: #d95926; --confirmed: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --surface-2: #262625;
+  --border: #383835;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e85;
+  --project: #3987e5; --machine: #d95926; --confirmed: #199e70;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; margin-bottom: 4px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+h1 span { color: var(--machine); }
+.sub { color: var(--text-secondary); font-size: 13px; margin: 0 0 20px; max-width: 68ch; }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+section { margin-bottom: 16px; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted);
+     margin: 0 0 10px; font-weight: 600; }
+
+/* Controles */
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; margin-bottom: 16px; }
+button {
+  font: inherit; font-size: 13px; font-weight: 500; padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); cursor: pointer;
+}
+button:hover { border-color: var(--text-muted); }
+button.primary { background: var(--machine); border-color: var(--machine); color: #fff; }
+.clock { margin-left: auto; display: flex; align-items: baseline; gap: 8px; }
+.clock b { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.clock small { color: var(--text-muted); font-size: 12px; }
+.bar-time { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+.bar-time i { display: block; height: 100%; background: var(--machine); border-radius: 2px; width: 0; transition: width .4s; }
+
+/* Indicadores */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; }
+.tile { padding: 12px 14px; }
+.tile .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.tile .value { font-size: 25px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+               margin-top: 3px; line-height: 1.15; }
+.tile .note { font-size: 12px; color: var(--text-secondary); }
+
+#map { height: 440px; border-radius: 12px; z-index: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 10px 14px; font-size: 12.5px; color: var(--text-secondary); }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px;
+            vertical-align: middle; }
+.legend .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } #map { height: 320px; } }
+
+/* Linha do tempo */
+.timeline { max-height: 340px; overflow-y: auto; padding: 4px 0; }
+.ev { display: flex; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.ev:last-child { border-bottom: 0; }
+.ev .ico { flex: none; width: 20px; text-align: center; font-size: 13px; }
+.ev .body { min-width: 0; }
+.ev .t { font-size: 13px; font-weight: 500; }
+.ev .m { font-size: 12px; color: var(--text-secondary); }
+.ev time { margin-left: auto; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; flex: none; }
+
+/* Planejado x confirmado */
+.seg { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.seg:last-child { border-bottom: 0; }
+.seg .top { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.seg .id { font-weight: 600; }
+.seg .spec { color: var(--text-muted); font-size: 12px; }
+.seg .num { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--text-secondary); }
+.seg .num b { color: var(--text-primary); }
+.track { height: 10px; background: var(--surface-2); border-radius: 5px; margin-top: 7px; overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--confirmed); border-radius: 5px;
+           box-shadow: 0 0 0 2px var(--surface-1); transition: width .5s; }
+.empty { padding: 18px 14px; color: var(--text-muted); font-size: 13px; }
+footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width: 72ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Machine2Pipe <span>AI</span></h1>
+    <span class="sub" style="margin:0">JCB 3CX · drenagem · Calmon/SC · <span id="date">—</span></span>
+  </header>
+  <p class="sub">Telemetria real de 2022 reproduzida como se fosse hoje. O Python calcula a evidência —
+     trecho, estaca, permanência. O agente interpreta e pergunta ao engenheiro no Telegram.
+     <strong>Proximidade de GPS é evidência de atividade, nunca prova de tubo assentado.</strong></p>
+
+  <div class="card controls">
+    <button class="primary" onclick="cmd('start')">▶ Iniciar</button>
+    <button onclick="cmd('pause')">⏸ Pausar</button>
+    <button onclick="cmd('reset')">↺ Reiniciar</button>
+    <button onclick="toggleTheme()">◐ Tema</button>
+    <div class="clock"><b id="time">--:--</b><small id="speed"></small></div>
+    <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
+  </div>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section>
+    <h2>Projeto e trilha da máquina</h2>
+    <div id="map" class="card"></div>
+    <div class="legend card" style="margin-top:8px">
+      <span><i style="background:var(--project)"></i>Traçado do projeto</span>
+      <span><i style="background:var(--machine)"></i>Trilha percorrida</span>
+      <span><i class="dot" style="background:var(--machine)"></i>Posição atual</span>
+      <span><i class="dot" style="background:var(--project);opacity:.55"></i>Poço de visita</span>
+      <span id="corridor"></span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Eventos determinísticos</h2>
+      <div class="card timeline" id="events"><div class="empty">Inicie o replay.</div></div>
+    </section>
+    <section>
+      <h2>Planejado × confirmado por trecho</h2>
+      <div class="card" id="segments"><div class="empty">Carregando…</div></div>
+    </section>
+  </div>
+
+  <footer>Cada metro confirmado guarda quem confirmou, quando e em qual mensagem. Uma quantidade
+    sem fonte humana não é gravada. Altura de tubo e profundidade não são medidas por imagem sem escala.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const TIPOS = {
+  entered_segment:      {ico:'▶', rotulo:'Entrou no trecho',      cor:'var(--text-muted)'},
+  left_segment:         {ico:'◀', rotulo:'Saiu do trecho',        cor:'var(--text-muted)'},
+  long_dwell:           {ico:'⏸', rotulo:'Parada longa',          cor:'var(--warning)'},
+  progress_unconfirmed: {ico:'⏳', rotulo:'Confirmação pendente',  cor:'var(--warning)'},
+  outside_project:      {ico:'⚠', rotulo:'Fora do projeto',       cor:'var(--serious)'},
+  unexpected_segment:   {ico:'⚠', rotulo:'Trecho fora do plano',  cor:'var(--serious)'},
+  gps_gap:              {ico:'◌', rotulo:'Falha de GPS',          cor:'var(--critical)'},
+  rain_context:         {ico:'☂', rotulo:'Chuva no período',      cor:'var(--text-muted)'},
+};
+const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+const num = (v, d=0) => (v ?? 0).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
+
+let map, camadaProjeto, camadaTrilha, marcador, centralizado = false;
+
+function iniciarMapa() {
+  map = L.map('map', {zoomControl:true, attributionControl:true});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution:'© OpenStreetMap, © CARTO', maxZoom:20
+  }).addTo(map);
+  map.setView([-26.6034, -51.0984], 16);
+  camadaProjeto = L.layerGroup().addTo(map);
+  camadaTrilha = L.layerGroup().addTo(map);
+}
+
+function desenharProjeto(dados) {
+  camadaProjeto.clearLayers();
+  const estilo = getComputedStyle(document.documentElement);
+  const cor = estilo.getPropertyValue('--project').trim();
+  const limites = [];
+  dados.segments.forEach(s => {
+    L.polyline(s.coordinates, {color:cor, weight:5, opacity:.9}).addTo(camadaProjeto)
+      .bindTooltip(`${s.segment_id} · DN${num(s.diameter_mm)} ${s.material||''} · ${num(s.planned_length_m)} m previstos`);
+    s.coordinates.forEach(c => limites.push(c));
+    L.circleMarker(s.coordinates[0], {radius:4, color:cor, fillColor:cor, fillOpacity:.55, weight:1})
+      .addTo(camadaProjeto);
+  });
+  if (!centralizado && limites.length) { map.fitBounds(limites, {padding:[40,40]}); centralizado = true; }
+}
+
+function desenharMaquina(dados) {
+  camadaTrilha.clearLayers();
+  const cor = getComputedStyle(document.documentElement).getPropertyValue('--machine').trim();
+  if (dados.track.length > 1) {
+    L.polyline(dados.track, {color:cor, weight:2, opacity:.75}).addTo(camadaTrilha);
+  }
+  const m = dados.machine;
+  L.circleMarker([m.latitude, m.longitude], {
+    radius:8, color:'#fff', weight:2, fillColor:cor, fillOpacity:1
+  }).addTo(camadaTrilha).bindTooltip(
+    `${m.machine_id} · ${m.engine_on ? 'motor ligado' : 'motor desligado'}` +
+    (m.segment_id ? ` · ${m.segment_id} estaca ${num(m.chainage_m,1)} m` : ' · fora do corredor'));
+}
+
+function indicadores(d) {
+  const m = d.machine;
+  const confirmado = d.segments.reduce((t,s) => t + s.confirmed_length_m, 0);
+  const previsto = d.segments.reduce((t,s) => t + s.planned_length_m, 0);
+  const pendentes = d.events.filter(e => ['progress_unconfirmed','long_dwell'].includes(e.event_type)).length;
+  const tiles = [
+    ['Trecho ativo', m.segment_id || '—', m.segment_id ? `estaca ${num(m.chainage_m,1)} m · ${num(m.distance_to_axis_m,1)} m do eixo` : 'fora do corredor'],
+    ['Motor', m.engine_on ? 'Ligado' : 'Desligado', m.event_type ? m.event_type.replace(/_/g,' ') : ''],
+    ['Jornada', `${num(m.shift_hours,1)} h`, `${m.points} pontos de telemetria`],
+    ['Deslocamento', `${num(m.distance_km,2)} km`, 'acumulado no dia'],
+    ['Confirmado', `${num(confirmado)} m`, `de ${num(previsto)} m previstos`],
+    ['Aguardando engenheiro', String(pendentes), pendentes ? 'perguntas em aberto' : 'nada pendente'],
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(([l,v,n]) =>
+    `<div class="card tile"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`
+  ).join('');
+}
+
+function linhaDoTempo(d) {
+  const alvo = document.getElementById('events');
+  if (!d.events.length) { alvo.innerHTML = '<div class="empty">Nenhum evento até este instante.</div>'; return; }
+  alvo.innerHTML = d.events.slice().reverse().map(e => {
+    const t = TIPOS[e.event_type] || {ico:'•', rotulo:e.event_type, cor:'var(--text-muted)'};
+    const partes = [];
+    if (e.segment_id) partes.push(e.segment_id);
+    if (e.chainage_m != null) partes.push(`estaca ${num(e.chainage_m,1)} m`);
+    if (e.dwell_minutes) partes.push(`${num(e.dwell_minutes)} min`);
+    if (e.context && e.context.planned_diameter_mm) partes.push(`DN${num(e.context.planned_diameter_mm)}`);
+    return `<div class="ev"><span class="ico" style="color:${t.cor}">${t.ico}</span>
+      <span class="body"><span class="t">${t.rotulo}</span><br><span class="m">${partes.join(' · ') || '—'}</span></span>
+      <time>${hora(e.timestamp)}</time></div>`;
+  }).join('');
+}
+
+function trechos(d) {
+  const alvo = document.getElementById('segments');
+  alvo.innerHTML = d.segments.map(s => {
+    const pct = s.planned_length_m ? Math.min(100, 100 * s.confirmed_length_m / s.planned_length_m) : 0;
+    return `<div class="seg">
+      <div class="top"><span class="id">${s.segment_id}</span>
+        <span class="spec">DN${num(s.diameter_mm)} · ${s.material||''}</span>
+        <span class="num"><b>${num(s.confirmed_length_m)} m</b> de ${num(s.planned_length_m)} m</span></div>
+      <div class="track"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+}
+
+function toggleTheme() {
+  const escuro = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.hasAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme', escuro ? 'light' : 'dark');
+  atualizar();
+}
+
+async function cmd(acao) {
+  await fetch(`/api/replay/${acao}`, {method:'POST'});
+  atualizar();
+}
+
+async function atualizar() {
+  try {
+    const d = await (await fetch('/api/state')).json();
+    document.getElementById('date').textContent = new Date(d.replay.day_start).toLocaleDateString('pt-BR');
+    document.getElementById('time').textContent = hora(d.replay.simulated_time);
+    document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
+    document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
+    document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
+    desenharProjeto(d); desenharMaquina(d); indicadores(d); linhaDoTempo(d); trechos(d);
+  } catch (erro) {
+    document.getElementById('speed').textContent = 'sem resposta da API';
+  }
+}
+
+iniciarMapa(); atualizar(); setInterval(atualizar, 2000);
+</script>
+</body>
+</html>

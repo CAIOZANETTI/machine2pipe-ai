@@ -11,7 +11,7 @@ These are settled; do not re-litigate them mid-build.
 | Decision | Value | Why |
 |---|---|---|
 | Package layout | `src/machine2pipe/`, installed via `pyproject.toml` | Already committed, green, and imported by passing tests |
-| Dashboard entrypoint | `app/streamlit_app.py` | Referenced by `start.sh` and `railway.toml` |
+| Dashboard | `web/index.html` served by `src/machine2pipe/api.py` (FastAPI) | Streamlit was dropped: one Railway service serving the page and the API reads the same SQLite the worker writes, so no bridge between two clouds is needed |
 | Hosting | One Railway service running dashboard and worker | The persistent volume mounts to a single service |
 | Demo day | `2022-06-28` | 296 telemetry points, 11.9 h shift, and 3 field photos with EXIF GPS |
 | Metric CRS | `EPSG:31982` (SIRGAS 2000 / UTM 22S) | The works are in Calmon/SC |
@@ -29,13 +29,13 @@ out of scope for both agents.
 | `pyproject.toml`, `requirements.txt`, `Dockerfile`, `start.sh`, `railway.toml` | done |
 | `src/machine2pipe/config.py` | done |
 | `src/machine2pipe/telemetry/adapter_jcb_2022.py`, `loader.py` | done |
-| `app/streamlit_app.py` | first version done |
+| `src/machine2pipe/api.py`, `web/index.html` | done |
+| `src/machine2pipe/replay.py` | done |
 | `src/machine2pipe/geo/project_loader.py` | KML/KMZ parsing, segment attributes |
 | `src/machine2pipe/geo/matching.py` | nearest segment, corridor, distance to axis |
 | `src/machine2pipe/geo/stationing.py` | chainage along the alignment |
-| `src/machine2pipe/events.py` | deterministic event rules |
-| `src/machine2pipe/storage.py` | SQLite schema, reads and writes |
-| `src/machine2pipe/replay.py` | telemetry replay engine |
+| `src/machine2pipe/events.py` | done |
+| `src/machine2pipe/storage.py` | done |
 | `src/machine2pipe/weather.py` | Open-Meteo archive |
 | `scripts/make_demo_kml.py` | provisional KML over the real 28/06 route |
 | `tests/test_adapter_*.py`, `test_geo_*.py`, `test_events_*.py` | |
