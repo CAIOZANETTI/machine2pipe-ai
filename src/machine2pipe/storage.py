@@ -103,9 +103,20 @@ def connect(database_path: Path | None = None) -> Iterator[sqlite3.Connection]:
         connection.close()
 
 
+# Colunas acrescentadas depois do primeiro deploy. O banco vive num volume e nao e recriado,
+# entao cada uma e adicionada se faltar; `ALTER TABLE ... ADD COLUMN` e idempotente assim.
+MIGRATIONS = [
+    ("photo_evidence", "visual_summary", "TEXT"),
+]
+
+
 def initialize(database_path: Path | None = None) -> None:
     with connect(database_path) as connection:
         connection.executescript(SCHEMA)
+        for table, column, kind in MIGRATIONS:
+            existentes = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+            if column not in existentes:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 def record_events(events: Iterable[Event], database_path: Path | None = None) -> int:
@@ -132,7 +143,7 @@ def record_photo(photo: dict[str, Any], database_path: Path | None = None) -> No
     columns = [
         "photo_id", "captured_at", "received_at", "latitude", "longitude", "segment_id",
         "chainage_m", "distance_to_segment_m", "telemetry_delta_seconds", "visual_class",
-        "confidence", "requires_confirmation", "source", "file_path",
+        "confidence", "requires_confirmation", "source", "file_path", "visual_summary",
     ]
     if not photo.get("photo_id"):
         raise StorageError("photo_id e obrigatorio")
@@ -143,6 +154,23 @@ def record_photo(photo: dict[str, Any], database_path: Path | None = None) -> No
             f"INSERT OR REPLACE INTO photo_evidence ({','.join(columns)}) "
             f"VALUES ({','.join('?' * len(columns))})",
             values,
+        )
+
+
+def update_photo_reading(
+    photo_id: str,
+    *,
+    visual_class: str | None,
+    confidence: float | None,
+    visual_summary: str | None,
+    database_path: Path | None = None,
+) -> None:
+    """Grava a leitura visual de uma foto ja arquivada. A geometria da foto nao muda."""
+    with connect(database_path) as connection:
+        connection.execute(
+            "UPDATE photo_evidence SET visual_class = ?, confidence = ?, visual_summary = ?"
+            " WHERE photo_id = ?",
+            (visual_class, confidence, visual_summary, photo_id),
         )
 
 
