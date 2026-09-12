@@ -16,7 +16,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from machine2pipe import events, llm, replay, storage, weather
+from machine2pipe import activity, events, llm, replay, storage, weather
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -59,9 +59,17 @@ def _weather():
     )
 
 
+@lru_cache(maxsize=1)
+def _episodes() -> list[activity.Episode]:
+    """A jornada lida como episodios. Deterministica sobre `_day()`, entao vale cache."""
+    project, matched, _ = _day()
+    return activity.episodes(matched, project=project)
+
+
 @app.on_event("startup")
 def _warm() -> None:
     _day()
+    _episodes()
 
 
 @app.get("/health")
@@ -327,6 +335,11 @@ def state() -> JSONResponse:
             "weather": _weather().to_dict() if _weather().available else None,
             "photos": photos.to_dict("records") if not photos.empty else [],
             "agent": _agent_trace(),
+            # O que a maquina estava fazendo ate agora, com as fotos presas ao episodio em
+            # que foram tiradas. E a leitura que o Python faz antes de o agente perguntar.
+            "activity": activity.summary(
+                activity.attach_photos(activity.until(_episodes(), now), photos)
+            ),
         }
     )
 

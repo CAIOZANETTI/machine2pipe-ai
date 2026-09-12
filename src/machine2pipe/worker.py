@@ -21,7 +21,7 @@ from typing import Any
 
 import pandas as pd
 
-from machine2pipe import agent, events as event_rules, ingest, replay, storage, tools, vision
+from machine2pipe import activity, agent, events as event_rules, ingest, replay, storage, tools, vision
 from machine2pipe.config import config
 from machine2pipe.photos import PhotoStore, StoredPhoto
 from machine2pipe.telegram_bot import TelegramBot, parse_chat_allowlist
@@ -133,10 +133,16 @@ class FieldAgent:
         return tratados
 
     def handle_event(self, evento: dict[str, Any]) -> agent.Decision:
+        # O que a maquina fez ate o evento, lido pelo Python. E o que faz a pergunta
+        # dizer "trabalhou 3h entre as estacas 114 e 165" em vez de "houve um evento".
+        ate_aqui = activity.until(self.index.episodes, pd.Timestamp(evento["timestamp"]))
+        activity.attach_photos(ate_aqui, storage.photos_frame())
+        evento.setdefault("context", {})["activity"] = activity.narrative(ate_aqui)
         briefing, registro = tools.briefing(
             evento,
             project=self.index.project,
             location=self._machine_at(pd.Timestamp(evento["timestamp"])),
+            activity_summary=activity.summary(ate_aqui),
         )
         decisao = agent.decide(evento, briefing=briefing, tool_calls=registro.calls)
 
@@ -224,6 +230,13 @@ class FieldAgent:
         )
 
         partes = [colocacao.describe(), leitura.describe()]
+        episodio = next(
+            (e for e in self.index.episodes if e.start <= colocacao.captured_at <= e.end), None
+        )
+        if episodio and episodio.state == activity.FRENTE:
+            partes.append(f"Ela cai dentro de uma {episodio.describe()}: evidência de execução.")
+        elif episodio:
+            partes.append(f"Nesse instante a leitura da telemetria era: {episodio.describe()}.")
         if colocacao.anchored_to_replay:
             partes.append("Ancorada no instante do replay: a foto nao tem horario proprio.")
         if not self.pending and colocacao.segment_id:

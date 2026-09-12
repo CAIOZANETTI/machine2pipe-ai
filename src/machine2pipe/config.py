@@ -57,5 +57,14 @@ class Config:
     gps_gap_minutes: float = float(os.getenv("GPS_GAP_MINUTES", "30"))
     outside_project_minutes: float = float(os.getenv("OUTSIDE_PROJECT_MINUTES", "20"))
 
+    # Leitura de comportamento (activity.py). Raio em que a maquina "esta" numa estrutura
+    # de apoio do KML; deslocamento acima do qual e transito, nao trabalho; e quanto o
+    # motor pode ficar desligado na frente sem que a frente termine (a equipe posiciona o
+    # tubo com a maquina desligada e o operador religa para escavar).
+    structure_radius_m: float = float(os.getenv("STRUCTURE_RADIUS_M", "50"))
+    transit_speed_kmh: float = float(os.getenv("TRANSIT_SPEED_KMH", "3"))
+    transit_jump_m: float = float(os.getenv("TRANSIT_JUMP_M", "100"))
+    short_stop_minutes: float = float(os.getenv("SHORT_STOP_MINUTES", "15"))
+
 
 config = Config()

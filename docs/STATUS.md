@@ -77,6 +77,19 @@ POST /api/replay/start|pause|reset
 POST /api/replay/jump/{event_id}
 ```
 
+## The reading Caio asked for
+
+The KML support points now drive a deterministic behaviour reading (`activity.py`): each
+instant is front of work, transit, at the yard, at the borrow pit, refuelling, stopped or
+off, from position in the project, engine state and displacement. The signature of pipe
+laying is unmistakable in the real telemetry: the machine holds the same chainage for
+an hour with the engine cycling every two or three minutes while the crew positions the
+pipe. On 2022-06-28 that reads as **5h06 at the front** (68–96 m in the morning, 114–164 m
+in the afternoon), 3h03 at the yard, 53 min at the borrow pit, 2h10 in transit; the fuel
+station was never closer than 213 m. The 12:59 and 13:01 photographs fall inside the
+12:57–14:10 front at chainage 114–153, which is what turns "the machine was there" into
+"the machine was executing there". The quantity still comes from the engineer.
+
 ## Facts that constrain the demo
 
 - **It did not rain on 2022-06-28.** Open-Meteo gives 0.0 mm and 7.8 to 19.0 °C. The rain

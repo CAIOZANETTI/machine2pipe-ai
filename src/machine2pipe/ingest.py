@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from machine2pipe import activity
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -75,6 +76,10 @@ class ProjectIndex:
         self.project = project_loader.load(config.project_kml_path, config.segments_csv_path)
         self.matcher = SegmentMatcher(self.project, config.target_crs, config.corridor_m)
         self.telemetry = loader.load_day(config.replay_date)
+        # A leitura de comportamento do dia inteiro; o worker recorta ate o instante.
+        self.episodes = activity.episodes(
+            self.matcher.match_frame(self.telemetry), project=self.project
+        )
 
     @property
     def day_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
