@@ -34,9 +34,10 @@ log = logging.getLogger(__name__)
 
 _stop_event = threading.Event()
 
-# Quantos eventos o agente trata por rodada. A 60x o replay pode alcancar varios eventos
-# entre duas rodadas, e despejar todos de uma vez viraria uma rajada no Telegram.
-MAX_POR_RODADA = 2
+# Quantos eventos o agente trata por rodada. Com o teto por tipo de evento em agent.py a
+# maioria e escrituracao silenciosa, entao a rodada pode ser maior sem virar rajada no
+# Telegram; ao pular o relogio para o fim do dia, 18 eventos levam menos de um minuto.
+MAX_POR_RODADA = 4
 
 
 def _stop(signum, _frame):

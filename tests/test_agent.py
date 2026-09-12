@@ -162,3 +162,34 @@ def test_fora_do_projeto_com_trecho_pode_virar_pergunta(monkeypatch):
     responde(monkeypatch, {"decision": "ask", "message": "O que houve?",
                            "confidence": 0.8, "rationale": "fora do projeto"})
     assert agent.decide(evento).decision == agent.ASK
+
+
+def test_entrar_e_sair_do_trecho_nunca_falam(monkeypatch):
+    """Catorze vezes por dia; em producao o modelo quis perguntar em cada uma."""
+    for tipo in (event_rules.ENTERED_SEGMENT, event_rules.LEFT_SEGMENT):
+        responde(monkeypatch, {"decision": "ask", "message": "Quantos metros?",
+                               "confidence": 1.0, "rationale": "avanco"})
+        decisao = agent.decide({**EVENTO, "event_type": tipo})
+        assert decisao.decision == agent.LOG
+        assert decisao.message == "", "escrituracao nao envia texto"
+
+
+def test_texto_do_modelo_nao_sobrevive_ao_rebaixamento(monkeypatch):
+    """Um aviso redigido como pergunta convida uma resposta que ninguem vai ler."""
+    evento = {**EVENTO, "event_type": event_rules.GPS_GAP}
+    responde(monkeypatch, {"decision": "ask", "message": "Qual o motivo da interrupção?",
+                           "confidence": 1.0, "rationale": "parada"})
+    decisao = agent.decide(evento)
+    assert decisao.decision == agent.NOTIFY
+    assert "?" not in decisao.message
+
+
+def test_escrituracao_nao_consulta_o_modelo(monkeypatch):
+    monkeypatch.setattr(llm, "available", lambda: True)
+
+    def nunca(*a, **k):
+        raise AssertionError("o modelo nao devia ser chamado para entrar/sair do trecho")
+
+    monkeypatch.setattr(llm, "structured", nunca)
+    decisao = agent.decide({**EVENTO, "event_type": event_rules.ENTERED_SEGMENT})
+    assert decisao.decision == agent.LOG

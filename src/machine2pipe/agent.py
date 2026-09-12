@@ -188,14 +188,28 @@ def default_message(event: dict[str, Any], decision: str) -> str:
     return f"{_short(event)}."
 
 
+# Ate onde o modelo pode elevar cada tipo de evento. Entrar e sair do trecho acontece
+# catorze vezes num dia normal e nao diz nada ao engenheiro: e escrituracao, nunca fala.
+# Uma falha de GPS merece no maximo um aviso. Em producao, sem este teto, o modelo
+# transformou quase todos os eventos do dia em pergunta.
+CEILING = {
+    event_rules.PROGRESS_UNCONFIRMED: ASK,
+    event_rules.LONG_DWELL: ASK,
+    event_rules.UNEXPECTED_SEGMENT: ASK,
+    event_rules.OUTSIDE_PROJECT: ASK,
+    event_rules.GPS_GAP: NOTIFY,
+    event_rules.ENTERED_SEGMENT: LOG,
+    event_rules.LEFT_SEGMENT: LOG,
+}
+
+
 def ceiling(event: dict[str, Any]) -> str:
     """Ate onde o modelo pode elevar a decisao para este evento.
 
-    Um nivel acima do piso, e nunca `ask` num evento sem trecho: a resposta a essa pergunta
-    nao teria onde ser gravada, porque `record_confirmation` exige o trecho.
+    Nunca `ask` num evento sem trecho: a resposta a essa pergunta nao teria onde ser
+    gravada, porque `record_confirmation` exige o trecho.
     """
-    piso = FALLBACK.get(str(event.get("event_type")), LOG)
-    teto = DECISIONS[min(DECISIONS.index(piso) + 1, len(DECISIONS) - 1)]
+    teto = CEILING.get(str(event.get("event_type")), NOTIFY)
     if not event.get("segment_id") and DECISIONS.index(teto) > DECISIONS.index(NOTIFY):
         teto = NOTIFY
     return teto
@@ -210,6 +224,17 @@ def decide(
     """Decide o que fazer com um evento ja detectado pelo motor deterministico."""
     piso = FALLBACK.get(str(event.get("event_type")), LOG)
     registro = list(tool_calls or [])
+
+    if ceiling(event) == LOG:
+        # Escrituracao pura: nada que o modelo diga vai mudar a decisao nem gerar texto.
+        # Sao catorze dos dezoito eventos do dia; consulta-lo custava meio minuto cada.
+        return Decision(
+            decision=LOG,
+            message="",
+            confidence=None,
+            rationale="escrituracao: este tipo de evento nunca fala",
+            tool_calls=registro,
+        )
 
     if not llm.available():
         return Decision(
@@ -252,11 +277,13 @@ def decide(
     if DECISIONS.index(escolha) < DECISIONS.index(piso):
         log.info("decisao do modelo (%s) abaixo do piso (%s); mantendo o piso", escolha, piso)
         escolha = piso
-    elif DECISIONS.index(escolha) > DECISIONS.index(teto):
-        log.info("decisao do modelo (%s) acima do teto (%s); mantendo o teto", escolha, teto)
-        escolha = teto
-
     mensagem = str(dados.get("message", "")).strip()
+    if DECISIONS.index(escolha) > DECISIONS.index(teto):
+        log.info("decisao do modelo (%s) acima do teto (%s); mantendo o teto", escolha, teto)
+        # O texto do modelo foi escrito para a decisao que ele queria. Um aviso redigido
+        # como pergunta — "quantos metros?" — convida uma resposta que ninguem vai ler.
+        escolha = teto
+        mensagem = default_message(event, escolha) if escolha in {NOTIFY, ASK} else ""
     if escolha in {NOTIFY, ASK} and not mensagem:
         mensagem = default_message(event, escolha)
     try:
