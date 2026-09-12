@@ -48,11 +48,11 @@ def test_o_modelo_nao_pode_silenciar_o_que_a_regra_manda_perguntar(monkeypatch):
     assert decisao.message, "uma pergunta sem texto nao chega a ninguem"
 
 
-def test_o_modelo_pode_elevar_o_cuidado(monkeypatch):
+def test_o_modelo_pode_elevar_o_cuidado_um_nivel(monkeypatch):
     evento = {**EVENTO, "event_type": event_rules.GPS_GAP}
-    responde(monkeypatch, {"decision": "ask", "message": "Sinal sumiu. Estava trabalhando?",
+    responde(monkeypatch, {"decision": "notify", "message": "Sinal sumiu por 30 min.",
                            "confidence": 0.4, "rationale": "lacuna longa"})
-    assert agent.decide(evento).decision == agent.ASK
+    assert agent.decide(evento).decision == agent.NOTIFY
 
 
 def test_modelo_indisponivel_cai_na_regra(monkeypatch):
@@ -137,3 +137,28 @@ def test_saida_do_corredor_sem_duracao_nao_diz_zero(sem_modelo):
     mensagem = agent.decide(evento).message
     assert "0 min" not in mensagem
     assert "07:05" in mensagem or "17:05" in mensagem
+
+
+def test_o_modelo_sobe_um_nivel_nunca_dois(monkeypatch):
+    """Falha de GPS as 07:05 nao vira pergunta: em producao virou, e engoliu a que importava."""
+    evento = {**EVENTO, "event_type": event_rules.GPS_GAP, "segment_id": None}
+    responde(monkeypatch, {"decision": "ask", "message": "Qual o motivo da parada?",
+                           "confidence": 1.0, "rationale": "parada longa"})
+    decisao = agent.decide(evento)
+    assert decisao.decision == agent.NOTIFY
+    assert decisao.message, "avisar ainda exige texto"
+
+
+def test_sem_trecho_nao_ha_pergunta(monkeypatch):
+    """A resposta a uma pergunta sem trecho nao teria onde ser gravada."""
+    evento = {**EVENTO, "event_type": event_rules.OUTSIDE_PROJECT, "segment_id": None}
+    responde(monkeypatch, {"decision": "ask", "message": "O que houve?",
+                           "confidence": 0.8, "rationale": "fora do projeto"})
+    assert agent.decide(evento).decision == agent.NOTIFY
+
+
+def test_fora_do_projeto_com_trecho_pode_virar_pergunta(monkeypatch):
+    evento = {**EVENTO, "event_type": event_rules.OUTSIDE_PROJECT}
+    responde(monkeypatch, {"decision": "ask", "message": "O que houve?",
+                           "confidence": 0.8, "rationale": "fora do projeto"})
+    assert agent.decide(evento).decision == agent.ASK

@@ -147,8 +147,16 @@ class FieldAgent:
         decisao = agent.decide(evento, briefing=briefing, tool_calls=registro.calls)
 
         # Uma pergunta de cada vez: duas perguntas abertas tornam a resposta ambigua e a
-        # confirmacao deixaria de poder apontar para um evento so.
-        if decisao.expects_reply and self.pending:
+        # confirmacao deixaria de poder apontar para um evento so. A excecao e o avanco sem
+        # confirmacao: e a pergunta que a demonstracao — e a obra — existe para fazer, e
+        # ela substitui qualquer pergunta menor que esteja esperando resposta.
+        if decisao.expects_reply and self.pending and self._supersedes(evento):
+            log.info(
+                "%s substitui a pergunta em aberto (%s)",
+                evento["event_id"],
+                self.pending.get("event_id"),
+            )
+        elif decisao.expects_reply and self.pending:
             log.info(
                 "pergunta ja aberta (%s); %s fica registrado sem perguntar",
                 self.pending.get("event_id"),
@@ -184,10 +192,18 @@ class FieldAgent:
                 with self.lock:
                     self.pending = {
                         "event_id": evento["event_id"],
+                        "event_type": evento.get("event_type"),
                         "message": decisao.message,
                         "segment_id": evento.get("segment_id"),
                     }
         return decisao
+
+    def _supersedes(self, evento: dict[str, Any]) -> bool:
+        pendente = self.pending or {}
+        return (
+            evento.get("event_type") == event_rules.PROGRESS_UNCONFIRMED
+            and pendente.get("event_type") != event_rules.PROGRESS_UNCONFIRMED
+        )
 
     # ---------------------------------------------------------------- Telegram
 
