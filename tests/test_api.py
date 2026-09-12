@@ -120,3 +120,15 @@ def test_diagnostico_reconhece_token_entre_aspas(cliente, monkeypatch):
     assert corpo["token_looks_quoted"] is True
     assert corpo["token_length"] == 48
     assert "aspas" in corpo["diagnosis"]
+
+
+def test_estado_expoe_a_conversa_do_agente(cliente):
+    agente = cliente.get("/api/state").json()["agent"]
+    assert set(agente) == {"actions", "confirmations", "open_question"}
+
+
+def test_zerar_a_demonstracao_volta_o_replay_ao_inicio(cliente):
+    cliente.post("/api/replay/start")
+    resposta = cliente.post("/api/agent/reset").json()
+    assert set(resposta["cleared"]) == {"agent_actions", "confirmations", "telegram_photos"}
+    assert resposta["replay"]["status"] == "stopped"

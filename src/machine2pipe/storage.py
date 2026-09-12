@@ -275,6 +275,25 @@ def open_question(database_path: Path | None = None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def reset_demo(database_path: Path | None = None) -> dict[str, int]:
+    """Apaga o que a conversa produziu, para a demonstracao poder ser gravada de novo.
+
+    `pending_events` foi desenhada para nao repetir pergunta quando o replay reinicia; a
+    consequencia e que o segundo ensaio do video nao tem pergunta nenhuma. Esta e a unica
+    porta que limpa decisoes, confirmacoes e fotos vindas do Telegram. Os eventos ficam:
+    sao deterministicos e voltariam identicos. As fotos do album ficam: sao dado historico.
+    """
+    with connect(database_path) as connection:
+        contagem = {
+            "agent_actions": connection.execute("DELETE FROM agent_actions").rowcount,
+            "confirmations": connection.execute("DELETE FROM confirmations").rowcount,
+            "telegram_photos": connection.execute(
+                "DELETE FROM photo_evidence WHERE source LIKE 'telegram%'"
+            ).rowcount,
+        }
+    return contagem
+
+
 def handled_event_ids(database_path: Path | None = None) -> set[str]:
     frame = _frame("SELECT DISTINCT event_id FROM agent_actions WHERE event_id IS NOT NULL",
                    database_path=database_path)

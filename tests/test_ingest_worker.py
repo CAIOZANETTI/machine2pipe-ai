@@ -165,3 +165,29 @@ def test_ferramentas_registram_o_que_consultaram(index, banco):
         "segment_status", "confirmation_history", "photo_evidence"
     }
     assert dados["trecho"]["planned_length_m"], "o projetado vem do projeto, nao do modelo"
+
+
+def test_sem_chat_o_agente_nao_consome_a_fila(index, banco, monkeypatch):
+    """Sem TELEGRAM_CHAT_ID a pergunta que carrega a demonstracao nao pode ser queimada."""
+    monkeypatch.setattr(llm, "available", lambda: False)
+    worker._record_day(index)
+    inicio, fim = index.day_bounds
+    replay.jump_to(fim, inicio)
+    mudo = worker.FieldAgent(index, BotFalso(), chat_id=None)
+    assert mudo.tick() == 0
+    assert len(storage.pending_events()) == 18, "tudo continua pendente ate a variavel chegar"
+    assert storage.agent_actions_frame().empty
+
+
+def test_zerar_a_demonstracao_preserva_eventos_e_album(index, campo, tmp_path):
+    campo.handle_event(evento_de_avanco(index))
+    campo.on_text({"from": {"id": 42}}, "18 m")
+    campo.on_photo({}, foto(tmp_path, datetime(2022, 6, 28, 13, 1, 32)))
+    storage.record_photo({"photo_id": "album_x", "source": "album", "captured_at": "2022-06-28T12:59:00-03:00"})
+
+    apagados = storage.reset_demo()
+
+    assert apagados == {"agent_actions": 2, "confirmations": 1, "telegram_photos": 1}
+    assert len(storage.events_frame()) == 18
+    assert list(storage.photos_frame().photo_id) == ["album_x"]
+    assert len(storage.pending_events()) == 18, "a pergunta volta a ser feita no proximo ensaio"

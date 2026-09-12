@@ -326,8 +326,43 @@ def state() -> JSONResponse:
             ],
             "weather": _weather().to_dict() if _weather().available else None,
             "photos": photos.to_dict("records") if not photos.empty else [],
+            "agent": _agent_trace(),
         }
     )
+
+
+def _agent_trace() -> dict:
+    """A conversa do agente como o painel a mostra: o que ele disse e o que foi confirmado.
+
+    `log` e `ignore` ficam de fora — sao dezesseis dos dezoito eventos do dia e nao dizem
+    nada ao engenheiro. O que aparece e o que saiu no Telegram e o que voltou dele.
+    """
+    acoes = storage.agent_actions_frame()
+    faladas = []
+    if not acoes.empty:
+        faladas = acoes[acoes.decision.isin(["notify", "ask", "confirmed"])]
+        faladas = faladas[["action_id", "event_id", "decision", "message", "confidence", "created_at"]]
+        faladas = faladas.where(pd.notna(faladas), None).to_dict("records")
+    confirmacoes = storage.confirmations_frame()
+    return {
+        "actions": faladas,
+        "confirmations": (
+            confirmacoes.where(pd.notna(confirmacoes), None).to_dict("records")
+            if not confirmacoes.empty else []
+        ),
+        "open_question": storage.open_question(),
+    }
+
+
+@app.post("/api/agent/reset")
+def agent_reset() -> dict:
+    """Limpa decisoes, confirmacoes e fotos do Telegram, e volta o replay ao inicio.
+
+    E o botao de "gravar de novo": sem ele o segundo ensaio nao tem pergunta, porque a
+    fila nao repete o que ja foi decidido. Eventos e fotos do album permanecem.
+    """
+    apagados = storage.reset_demo()
+    return {"cleared": apagados, "replay": replay.reset().__dict__}
 
 
 @app.get("/api/events/pending")

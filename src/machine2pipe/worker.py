@@ -89,6 +89,7 @@ class FieldAgent:
         self.bot = bot
         self.chat_id = chat_id
         self.lock = threading.Lock()
+        self._warned_no_destination = False
         # Sobrevive ao reinicio do worker: a resposta que chegar depois continua com dono.
         self.pending: dict[str, Any] | None = storage.open_question()
         if self.pending:
@@ -110,6 +111,14 @@ class FieldAgent:
 
     def tick(self) -> int:
         """Trata os eventos ja alcancados pelo relogio do replay. Devolve quantos."""
+        if not self.bot or self.chat_id is None:
+            # Sem chat para perguntar, tratar a fila so a esvaziaria: a acao ficaria
+            # gravada, o evento sairia da fila e a pergunta que carrega a demonstracao
+            # nunca seria feita. Melhor deixar tudo pendente ate a variavel chegar.
+            if not self._warned_no_destination:
+                log.error("TELEGRAM_CHAT_ID ausente: o agente nao trata a fila ate ter um chat")
+                self._warned_no_destination = True
+            return 0
         agora = self.simulated_now()
         fila = storage.pending_events(until=agora.isoformat())
         if fila.empty:
