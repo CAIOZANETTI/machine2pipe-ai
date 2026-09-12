@@ -32,7 +32,7 @@ def test_replay_parado_comeca_no_inicio_do_dia(cliente):
 
 def test_projeto_e_servido_com_geometria_e_atributos(cliente):
     trechos = cliente.get("/api/state").json()["segments"]
-    assert len(trechos) == 7
+    assert [t["segment_id"] for t in trechos] == ["tubo_concreto_40"]
     assert all(len(t["coordinates"]) >= 2 for t in trechos)
     assert trechos[0]["diameter_mm"] == 400.0
     assert trechos[0]["confirmed_length_m"] == 0.0

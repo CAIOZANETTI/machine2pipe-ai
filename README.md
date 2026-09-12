@@ -333,6 +333,11 @@ machine2pipe-ai/
 │   ├── telegram_bot.py
 │   ├── tools.py
 │   ├── weather.py
+│   ├── agent.py
+│   ├── tools.py
+│   ├── vision.py
+│   ├── llm.py
+│   ├── ingest.py
 │   ├── geo/
 │   │   ├── matching.py
 │   │   ├── project_loader.py
@@ -341,6 +346,7 @@ machine2pipe-ai/
 │       ├── adapter_jcb_2022.py
 │       └── loader.py
 ├── data/
+│   ├── project/
 │   ├── sample/
 │   ├── photos/
 │   └── output/
@@ -364,18 +370,19 @@ The authoritative list is `.env.example`. Current values:
 ```dotenv
 TELEMETRY_PATH=data/silver_jcb_relatorio_2022.parquet
 TELEMETRY_URL=https://raw.githubusercontent.com/CAIOZANETTI/gps_maquina/main/data/silver_jcb_relatorio_2022.parquet
-PROJECT_KML_PATH=data/sample/projeto_calmon.kml
-SEGMENTS_CSV_PATH=data/sample/segments.csv
+PROJECT_KML_PATH=data/project/calmon_jit_machine2pipe-ai.kml
+SEGMENTS_CSV_PATH=data/project/segments.csv
 DATABASE_PATH=/data/machine2pipe.db
 PHOTO_STORAGE_PATH=/data/photos
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
-LLM_PROVIDER=openai
-OPENAI_API_KEY=
+LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=
-LLM_MODEL=
+OPENAI_API_KEY=
+LLM_MODEL=google/gemini-2.5-flash
+AGENT_TICK_SECONDS=20
 EXA_API_KEY=
 
 REPLAY_DATE=2022-06-28
@@ -391,6 +398,13 @@ GPS_GAP_MINUTES=30
 
 `REPLAY_SPEED` is 60, not 600: at 600x a 45-minute dwell fires in 4.5 seconds and the
 engineer cannot answer in Telegram before the window closes.
+
+`TELEGRAM_CHAT_ID` is required, not optional. With no chat on the allowlist the bot
+refuses to record evidence from anyone — it answers `/whoami` so you can read your chat id,
+and says which variable to set. Without a model key the agent still runs: every decision
+falls back to the deterministic rule in `agent.FALLBACK`, and the loop keeps working with
+nothing in it produced by a model. `/api/agent/check` and `/api/telegram/check` say which
+of those states the deployed service is in, without revealing either secret.
 
 Never commit API keys, Telegram tokens, private files, or an unapproved telemetry dataset.
 

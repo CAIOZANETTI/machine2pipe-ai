@@ -16,7 +16,27 @@ TextHandler = Callable[[dict[str, Any], str], str | None]
 
 
 def parse_chat_allowlist(value: str) -> set[int]:
-    return {int(item.strip()) for item in value.split(",") if item.strip()}
+    """Le TELEGRAM_CHAT_ID. Um valor invalido vira aviso, nunca queda do worker.
+
+    O erro de operacao que isto convida e especifico e ja foi cometido: gravar o nome do
+    bot onde vai o numero do chat. Com o worker supervisionado, deixar o `int()` estourar
+    transformava um engano de digitacao em crash-loop de cinco em cinco segundos, e o
+    unico sintoma ficava no log. Melhor uma linha clara e a allowlist vazia.
+    """
+    permitidos: set[int] = set()
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            permitidos.add(int(item))
+        except ValueError:
+            log.error(
+                "TELEGRAM_CHAT_ID invalido: %r. Esperado o numero do chat (use /whoami), "
+                "nao o nome do bot.",
+                item,
+            )
+    return permitidos
 
 
 def select_largest_photo(message: dict[str, Any]) -> dict[str, Any] | None:
@@ -62,7 +82,14 @@ class TelegramBot:
         return response.content
 
     def _authorized(self, chat_id: int) -> bool:
-        return not self.allowed_chat_ids or chat_id in self.allowed_chat_ids
+        """Allowlist vazia nao autoriza ninguem.
+
+        Antes, sem TELEGRAM_CHAT_ID a lista ficava vazia e o `not` a transformava em
+        "todo mundo pode": qualquer pessoa que achasse o bot gravava foto e quantidade no
+        banco do projeto. Fechar e o padrao certo; para nao trocar isso por um bot mudo
+        sem explicacao, `dispatch` responde dizendo o que configurar.
+        """
+        return chat_id in self.allowed_chat_ids
 
     def _store_photo(self, message: dict[str, Any]) -> StoredPhoto | None:
         photo = select_largest_photo(message)
@@ -124,7 +151,18 @@ class TelegramBot:
             self.send_message(chat_id, f"Chat ID: {chat_id}")
             return
         if not self._authorized(chat_id):
-            log.warning("mensagem ignorada de chat nao autorizado: %s", chat_id)
+            if not self.allowed_chat_ids:
+                log.error(
+                    "TELEGRAM_CHAT_ID ausente: evidencia do chat %s recusada", chat_id
+                )
+                self.send_message(
+                    chat_id,
+                    "Nenhum chat autorizado esta configurado, entao nao posso registrar "
+                    f"evidencia. Grave TELEGRAM_CHAT_ID={chat_id} nas variaveis do "
+                    "servico e reimplante.",
+                )
+            else:
+                log.warning("mensagem ignorada de chat nao autorizado: %s", chat_id)
             return
         if text == "/status":
             self.send_message(chat_id, "Agente conectado; aguardando evidências de campo.")

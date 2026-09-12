@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -15,7 +16,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from machine2pipe import events, replay, storage, weather
+from machine2pipe import events, llm, replay, storage, weather
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -99,6 +100,13 @@ def health() -> dict[str, object]:
         "telegram_token_configured": bool(config.telegram_bot_token),
         "telegram_allowlist_configured": bool(config.telegram_chat_id),
         "model_key_configured": bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")),
+        "llm_provider": config.llm_provider,
+        "llm_model": config.llm_model,
+        "project_kml": config.project_kml_path.name,
+        # O elo do agente e o unico que nao da para ver pelo mapa: estes dois numeros
+        # dizem se ele decidiu alguma coisa e se alguma quantidade ganhou dono.
+        "agent_actions": int(len(storage.agent_actions_frame())),
+        "confirmations": int(len(storage.confirmations_frame())),
         "exa_key_configured": bool(config.exa_api_key),
         "database_path": str(config.database_path),
         "database_writable": os.access(Path(config.database_path).parent, os.W_OK),
@@ -189,6 +197,53 @@ def telegram_check() -> JSONResponse:
         )
     except requests.RequestException as erro:
         resultado["diagnosis"] = f"nao foi possivel falar com a API do Telegram: {erro}"
+    return JSONResponse(resultado)
+
+
+@app.get("/api/agent/check")
+def agent_check() -> JSONResponse:
+    """Pergunta ao modelo se ele responde, sem revelar a chave.
+
+    O bot mudo tinha tres causas identicas de fora; o agente mudo tem as mesmas. Uma
+    chamada minima separa "sem chave" de "chave recusada", de "sem credito" e de "modelo
+    responde, mas o loop nao esta rodando".
+    """
+    resultado: dict[str, object] = {
+        "provider": config.llm_provider,
+        "model": config.llm_model,
+        "key_present": llm.available(),
+    }
+    if not llm.available():
+        resultado["diagnosis"] = (
+            "nenhuma chave no container: defina OPENROUTER_API_KEY (ou OPENAI_API_KEY). "
+            "O agente segue decidindo por regra deterministica ate la."
+        )
+        return JSONResponse(resultado)
+
+    inicio = time.monotonic()
+    try:
+        eco = llm.structured(
+            [{"role": "user", "content": "Responda exatamente {\"ok\": true}."}],
+            schema={
+                "type": "object",
+                "properties": {"ok": {"type": "boolean"}},
+                "required": ["ok"],
+                "additionalProperties": False,
+            },
+            schema_name="verificacao",
+            max_tokens=20,
+        )
+    except llm.LLMUnavailable as erro:
+        resultado["model_answers"] = False
+        resultado["diagnosis"] = str(erro)
+        return JSONResponse(resultado)
+
+    resultado["model_answers"] = bool(eco.get("ok"))
+    resultado["latency_ms"] = int((time.monotonic() - inicio) * 1000)
+    resultado["diagnosis"] = (
+        "modelo respondendo; se nao ha pergunta no Telegram, o replay esta parado ou "
+        "nenhum evento foi alcancado ainda"
+    )
     return JSONResponse(resultado)
 
 

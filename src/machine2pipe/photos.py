@@ -115,7 +115,12 @@ class PhotoStore:
         safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(candidate).name)
         if not safe_name or safe_name in {".", ".."}:
             safe_name = f"{telegram_file_id}.jpg"
-        path = self.root / safe_name
+        # O nome do arquivo vem do telefone, e telefones repetem IMG_0001.jpg. Enviar como
+        # documento e justamente o caminho que pedimos para preservar o EXIF, entao duas
+        # fotos com o mesmo nome sao esperadas: sem o prefixo do file_id a segunda apagava
+        # a primeira em silencio e a evidencia sumia sem erro nenhum.
+        prefix = re.sub(r"[^A-Za-z0-9_-]+", "", telegram_file_id)[:24]
+        path = self.root / (f"{prefix}_{safe_name}" if prefix else safe_name)
         temporary = path.with_suffix(path.suffix + ".part")
         temporary.write_bytes(content)
         temporary.replace(path)

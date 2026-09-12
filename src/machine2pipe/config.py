@@ -24,15 +24,25 @@ class Config:
         "TELEMETRY_URL",
         "https://raw.githubusercontent.com/CAIOZANETTI/gps_maquina/main/data/silver_jcb_relatorio_2022.parquet",
     )
-    project_kml_path: Path = _path("PROJECT_KML_PATH", "data/sample/projeto_calmon.kml")
-    segments_csv_path: Path = _path("SEGMENTS_CSV_PATH", "data/sample/segments.csv")
+    # O projeto real exportado do Google Earth e o padrao. O KML provisorio de
+    # `data/sample/` continua no repositorio, mas so entra se apontado explicitamente.
+    project_kml_path: Path = _path(
+        "PROJECT_KML_PATH", "data/project/calmon_jit_machine2pipe-ai.kml"
+    )
+    segments_csv_path: Path = _path("SEGMENTS_CSV_PATH", "data/project/segments.csv")
     database_path: Path = _path("DATABASE_PATH", "data/machine2pipe.db")
     photo_storage_path: Path = _path("PHOTO_STORAGE_PATH", "data/photos")
 
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
-    llm_provider: str = os.getenv("LLM_PROVIDER", "openai")
-    llm_model: str = os.getenv("LLM_MODEL", "")
+    llm_provider: str = os.getenv("LLM_PROVIDER", "openrouter")
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    # Visao, saida estruturada e barato o bastante para o credito do hackathon.
+    llm_model: str = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
+    # Um evento silencioso nao existe para o engenheiro; um evento repetido cansa.
+    # O loop do agente acorda neste intervalo de tempo real, nao simulado.
+    agent_tick_seconds: float = float(os.getenv("AGENT_TICK_SECONDS", "20"))
     exa_api_key: str = os.getenv("EXA_API_KEY", "")
 
     replay_date: str = os.getenv("REPLAY_DATE", "2022-06-28")

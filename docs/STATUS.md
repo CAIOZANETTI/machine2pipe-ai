@@ -1,92 +1,94 @@
-# Status — 2026-09-12 15:10 BRT
+# Status — 2026-09-12 16:15 BRT
 
-Submission closes **2026-09-13 03:00 BRT** (12/09 23:00 PDT). About **11h50** remain.
+Submission closes **2026-09-13 03:00 BRT** (12/09 23:00 PDT). About **10h45** remain.
 
-`main` at `52174c9`. 41 tests passing. Deployed and serving at
+`main` at `ba64dc4`. 86 tests passing. Deployed at
 `https://machine2pipe-ai-production.up.railway.app`.
 
 ## The chain, link by link
 
-The definition of done in `README.md` is one chain. Six of its nine links work on real data.
+The definition of done in `README.md` is one chain. All nine links now exist in code; three
+of them have never run in production, because the variables they need are not in the
+container yet.
 
-| # | Link | State | Owner |
+| # | Link | State | Evidence |
 |---|---|---|---|
-| 1 | Real Parquet → canonical telemetry | **done** — 78,365 rows, schema audited | Claude |
-| 2 | KML → segments with attributes | **done** — 7 provisional segments; the real export is pending | Claude / Caio |
-| 3 | Photo → segment and chainage | **done** — 6 album photos matched by capture time | Claude |
-| 4 | Deterministic event | **done** — 29 on the demo day, reproducible | Claude |
-| 5 | Agent decision (ignore/log/notify/ask) | **missing** | Codex |
-| 6 | Question sent in Telegram | **partly** — the bot can send; nothing composes a question | Codex |
-| 7 | Engineer's reply parsed into a record | **missing** | Codex |
-| 8 | Confirmed progress persisted | **done** — `record_confirmation` refuses a quantity with no human source | Claude |
-| 9 | Panel updates | **done** — planned against confirmed, per segment | Claude |
+| 1 | Real Parquet → canonical telemetry | **done** | 78,365 rows, schema audited |
+| 2 | KML → segments with attributes | **done** | the real Google Earth export is now the default: one 255.06 m DN400 alignment, four reference points |
+| 3 | Photo → segment and chainage | **done** | `ingest.py`; a Telegram photo is now recorded and matched, not only the seeded album |
+| 4 | Deterministic event | **done** | 18 on the demo day with the real KML, reproducible |
+| 5 | Agent decision (ignore/log/notify/ask) | **code done, unproven live** | `agent.py`, floor rule + model |
+| 6 | Question sent in Telegram | **code done, unproven live** | `worker.FieldAgent.handle_event` |
+| 7 | Engineer's reply parsed into a record | **code done, unproven live** | `agent.read_reply`, quantity only if the digits are in the reply |
+| 8 | Confirmed progress persisted | **done** | `record_confirmation` refuses a quantity with no human source |
+| 9 | Panel updates | **done** | planned against confirmed, per segment |
 
-So the deterministic half is complete and the agent half is not. In scoring terms that
-matters more than the count suggests: links 5 to 7 are what makes this an agent rather than
-a dashboard, and they are the hackathon's theme.
+Links 5 to 7 run end to end in `tests/test_ingest_worker.py` and in a local smoke run over
+the real day: event `evt_2022-06-28_018` (`progress_unconfirmed`) produced the question
+*"A maquina trabalhou em tubo_concreto_40 e nada foi confirmado ate agora. Quantos metros
+de tubo foram assentados nesse trecho?"*, and the reply *"assentamos 42 m de tubo hoje"*
+became 42 m confirmed against 255 m planned, signed `telegram:<id>` and tied to that
+`event_id`. What has not happened yet is the same run against the deployed service.
 
 ## Roughly where we are
 
 | Phase | Complete | What is left |
 |---|---|---|
 | P0 Foundation | 100% | — |
-| P1 Data ingestion | 100% | the real KML from Google Earth (Caio) |
+| P1 Data ingestion | 100% | — |
 | P2 Engineering engine | 100% | — |
-| P3 Telegram and photos | ~70% | vision classification; the bot's own photo→segment call |
-| P4 AI agent | ~5% | everything: decision, prompts, tools, reply parsing, Exa |
-| P5 Demo | ~20% | video, written description, social post |
-
-Overall: about **70% of the code**, with the remaining 30% concentrated in one place.
+| P3 Telegram and photos | 100% | — |
+| P4 AI agent | ~85% | Exa research tool; audit log shown on the panel |
+| P5 Demo | ~20% | the live run, the video, the written description, the social post |
 
 ## Blocking, in order
 
-1. **Railway variables never reached the container.** `/health` reports
-   `telegram_token_configured: false` and `database_path: /app/data/machine2pipe.db`
-   instead of `/data`. The three variables are saved in the dashboard but not applied to
-   the active deployment, so the bot cannot poll and the database is wiped on every
-   deploy. **Caio: redeploy, and mount the volume at `/data`.**
-2. **No model key.** `/health` reports `model_key_configured: false`. The agent cannot
-   run without `OPENAI_API_KEY` or `OPENROUTER_API_KEY`. **Caio.**
-3. **`agent.py` and `tools.py` do not exist.** This is the critical path. **Codex.**
-4. **The real KML.** The provisional alignment works; swapping the file is instant.
-   **Caio.**
+1. **Three variables are not in the container.** `/health` reports `TELEGRAM_CHAT_ID`,
+   `OPENROUTER_API_KEY` and `LLM_MODEL` missing. Without the first, the bot now refuses to
+   record evidence — deliberately, and it says so in the chat — and the agent has no chat
+   to ask questions in. Without the second, every decision falls back to the deterministic
+   rule: the loop still works, but nothing in it is AI. **Caio:**
 
-## What Codex can rely on, already deployed
+   ```text
+   TELEGRAM_CHAT_ID=7161087185
+   OPENROUTER_API_KEY=<chave do OpenRouter, US$ 5 em creditos>
+   LLM_MODEL=google/gemini-2.5-flash
+   ```
+
+2. **The live run has not been done.** After the redeploy: `/api/agent/check` must answer
+   `model_answers: true`, then `POST /api/replay/start`, then the question must arrive in
+   Telegram and the reply must show up on the panel. Until that sequence runs once, links
+   5 to 7 are code, not a demonstration.
+3. **The video, the description and the social post.** **Caio.**
+
+## What the deployed service answers
 
 ```
-GET  /api/events/pending            queue of events already reached in simulated time
-                                    and not yet handled by the agent
+GET  /health                        which secrets reached the container, and now also
+                                    the model in use, the project file and how many
+                                    agent decisions and confirmations exist
+GET  /api/agent/check               asks the model whether it answers, without revealing
+                                    the key: separates no key, refused key, no credit and
+                                    a loop that simply is not running
+GET  /api/telegram/check            the same for the bot: token, webhook, pending updates
+GET  /api/events/pending            the agent's queue
 GET  /api/state                     replay clock, machine, segments, events, photos, weather
 POST /api/replay/start|pause|reset
-POST /api/replay/jump/{event_id}    jump the clock straight to an event
-GET  /health                        which secrets reached the container
-
-storage.pending_events(until=...)          the same queue, in-process
-storage.record_agent_action(...)           clears the event from the queue
-storage.record_confirmation(...)           the only way a quantity is persisted
-storage.confirmed_progress()               totals per segment, for the panel
-events.detect(...)                         deterministic rules, pure function
-weather.fetch(day, lat, lon)               rain context with its limits declared
+POST /api/replay/jump/{event_id}
 ```
-
-The event contract is in `docs/TASK_SPLIT.md`. Nothing in the agent layer needs to compute
-geometry, distance, chainage or totals — all of it already exists and is tested.
 
 ## Facts that constrain the demo
 
-- **It did not rain on 2022-06-28.** Open-Meteo, queried from the deployed service, gives
-  0.0 mm and 7.8 to 19.0 °C. The rain phrasing in the README example cannot be used for
-  this day. The narrative the data supports: an 11.9 h shift, three photographs at 12:59,
-  13:01 and 15:27, DN400 concrete planned, and nothing confirmed.
-- **The strongest trigger is `progress_unconfirmed`**, which fires four times on the real
-  day, one per segment worked. `long_dwell` does not fire: the longest engine-on stay
-  within 20 m is 25 minutes, and within 50 m it is 45. Whether a trench work station
-  spans 50 m is an engineering call for Caio, not a number to tune until an event appears.
+- **It did not rain on 2022-06-28.** Open-Meteo gives 0.0 mm and 7.8 to 19.0 °C. The rain
+  phrasing in the README example cannot be used for this day. The narrative the data
+  supports: an 11.9 h shift on a 255 m DN400 alignment, three photographs at 12:59, 13:01
+  and 15:27, and nothing confirmed until the engineer answers.
+- **`progress_unconfirmed` is the trigger that carries the demo.** With the real KML it
+  fires once, at the end of the working day, which is exactly the question worth asking.
+  `long_dwell` does not fire: the longest engine-on stay within 20 m is 25 minutes.
 - **Photos are matched by time, not by GPS**, because Telegram strips EXIF from images sent
-  as photos. Where GPS survives it agrees with the machine to within 20 to 53 m.
-
-## Two open review findings
-
-In `docs/REVIEWS.md`, both on the Codex side: the chat allowlist fails open when
-`TELEGRAM_CHAT_ID` is unset, which is the live state of the deployed bot; and two documents
-sharing a filename overwrite each other in `PhotoStore`.
+  as photos. A photo taken today has no 2022 telemetry to match, so it is anchored to the
+  replay clock and `received_at` keeps the real instant.
+- **The model never produces a quantity.** It may only extract digits the engineer wrote.
+  A number that is not in the reply text is discarded, and the confirmation is recorded
+  without a quantity rather than with an invented one.
