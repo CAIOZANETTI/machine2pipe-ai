@@ -288,6 +288,8 @@ flowchart TD
 
 ## Repository structure
 
+Target layout. Modules not yet written are listed in `docs/IMPLEMENTATION_PLAN.md`.
+
 ```text
 machine2pipe-ai/
 ├── app/
@@ -328,9 +330,13 @@ machine2pipe-ai/
 
 ## Configuration
 
+The authoritative list is `.env.example`. Current values:
+
 ```dotenv
-TELEMETRY_URL=
-PROJECT_KMZ_PATH=/data/project.kmz
+TELEMETRY_PATH=data/silver_jcb_relatorio_2022.parquet
+TELEMETRY_URL=https://raw.githubusercontent.com/CAIOZANETTI/gps_maquina/main/data/silver_jcb_relatorio_2022.parquet
+PROJECT_KML_PATH=data/sample/projeto_calmon.kml
+SEGMENTS_CSV_PATH=data/sample/segments.csv
 DATABASE_PATH=/data/machine2pipe.db
 PHOTO_STORAGE_PATH=/data/photos
 
@@ -341,13 +347,21 @@ LLM_PROVIDER=openai
 OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 LLM_MODEL=
-
 EXA_API_KEY=
 
-REPLAY_SPEED=600
-PROJECT_CORRIDOR_M=15
+REPLAY_DATE=2022-06-28
+REPLAY_SPEED=60
+TIMEZONE=America/Sao_Paulo
+MACHINE_ID=JCB-3CX
+TARGET_CRS=EPSG:31982
+PROJECT_CORRIDOR_M=25
 LONG_DWELL_MINUTES=45
+DWELL_MOVEMENT_M=20
+GPS_GAP_MINUTES=30
 ```
+
+`REPLAY_SPEED` is 60, not 600: at 600x a 45-minute dwell fires in 4.5 seconds and the
+engineer cannot answer in Telegram before the window closes.
 
 Never commit API keys, Telegram tokens, private files, or an unapproved telemetry dataset.
 
