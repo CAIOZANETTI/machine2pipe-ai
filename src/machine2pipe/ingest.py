@@ -21,7 +21,7 @@ from typing import Any
 
 import pandas as pd
 
-from machine2pipe import activity
+from machine2pipe import activity, weather
 from machine2pipe.config import config
 from machine2pipe.geo import project_loader
 from machine2pipe.geo.matching import SegmentMatcher
@@ -51,9 +51,12 @@ class PhotoPlacement:
 
     def describe(self) -> str:
         """Uma linha em portugues dizendo onde a foto caiu. Vai para o Telegram."""
+        quando = f"{self.captured_at:%H:%M}"
+        if self.captured_at.date() != pd.Timestamp(config.replay_date).date():
+            quando = f"{self.captured_at:%d/%m/%Y %H:%M}"
         if not self.segment_id:
             return (
-                f"Foto registrada as {self.captured_at:%H:%M}, mas a maquina estava fora do "
+                f"Foto registrada as {quando}, mas a maquina estava fora do "
                 f"corredor de {config.corridor_m:.0f} m do projeto nesse instante."
             )
         onde = f"{self.segment_id}, estaca {self.chainage_m:.0f} m"
@@ -63,7 +66,7 @@ class PhotoPlacement:
             else ""
         )
         return (
-            f"Foto situada em {onde} ({self.captured_at:%H:%M}), a "
+            f"Foto situada em {onde} ({quando}), a "
             f"{self.distance_to_segment_m:.0f} m do eixo.{conferencia}"
         )
 
@@ -89,6 +92,19 @@ class ProjectIndex:
         self.episodes = activity.episodes(
             self.matcher.match_frame(self.telemetry), project=self.project
         )
+
+    @lru_cache(maxsize=64)
+    def weather_of(self, day: date_type) -> dict[str, Any]:
+        """Chuva e temperatura do dia, pela reanalise do Open-Meteo. Contexto, nao previsao."""
+        pontos = self.all_telemetry[self.all_telemetry.timestamp.dt.date == day]
+        base = pontos if not pontos.empty else self.telemetry
+        dia = weather.fetch(
+            day.isoformat(), float(base.latitude.mean()), float(base.longitude.mean()),
+            timezone=config.timezone,
+        )
+        if not dia.available:
+            return {"available": False, "note": dia.note}
+        return {"available": True, "rained": dia.rained(), **dia.to_dict()}
 
     @lru_cache(maxsize=64)
     def read_day(self, day: date_type) -> dict[str, Any]:
@@ -130,15 +146,17 @@ class ProjectIndex:
         """Situa a foto no projeto pelo horario de captura, ou pelo relogio do replay."""
         anchored = True
         moment = self._localize(pd.Timestamp(simulated_now))
+        telemetria = self.telemetry
         if metadata.captured_at is not None:
             capturada = self._localize(pd.Timestamp(metadata.captured_at))
-            proximidade = (self.telemetry.timestamp - capturada).abs().min()
-            if proximidade <= MAX_DELTA:
-                moment, anchored = capturada, False
+            # Qualquer dia com telemetria serve, nao so o do replay: uma foto do album de
+            # 12/07 cai na estaca em que a maquina estava em 12/07, e nao no instante do
+            # replay de 28/06. Uma foto tirada hoje, sem telemetria de hoje, e ancorada.
+            do_dia = self.all_telemetry[self.all_telemetry.timestamp.dt.date == capturada.date()]
+            if not do_dia.empty and (do_dia.timestamp - capturada).abs().min() <= MAX_DELTA:
+                moment, anchored, telemetria = capturada, False, do_dia.reset_index(drop=True)
 
-        janela = self.telemetry.iloc[
-            (self.telemetry.timestamp - moment).abs().argsort()[:1]
-        ]
+        janela = telemetria.iloc[(telemetria.timestamp - moment).abs().argsort()[:1]]
         ponto = janela.iloc[0]
         delta = (ponto.timestamp - moment).total_seconds()
         casamento = self.matcher.match(float(ponto.latitude), float(ponto.longitude))

@@ -273,7 +273,8 @@ def test_le_outro_dia_sob_demanda(index):
     assert index.read_day(date(2021, 1, 1))["telemetry_points"] == 0
 
 
-def test_data_citada_entra_no_contexto_e_na_resposta_sem_modelo(campo):
+def test_data_citada_entra_no_contexto_e_na_resposta_sem_modelo(campo, monkeypatch):
+    monkeypatch.setattr(campo.index, "weather_of", lambda dia: {"available": False, "note": "teste"})
     resposta = campo.on_text({"from": {"id": 42}}, "o que aconteceu em 29/06/2022?")
     assert resposta.startswith("29/06/2022:")
     assert "nenhuma frente" in resposta
@@ -296,3 +297,43 @@ def test_evento_sem_trecho_nao_vira_nan(index, banco):
     mensagem = agent.default_message(lacuna, agent.NOTIFY)
     assert "nan" not in mensagem and "Sem sinal de GPS" in mensagem
     assert agent.ceiling(lacuna) == agent.NOTIFY
+
+
+def test_foto_de_outro_dia_cai_na_telemetria_daquele_dia(campo, tmp_path):
+    """Uma foto de 07/07 vai para onde a maquina estava em 07/07, nao para o replay."""
+    resposta = campo.on_photo({}, foto(tmp_path, datetime(2022, 7, 7, 10, 30, 0)))
+    linha = storage.photos_frame().iloc[0]
+    assert linha.captured_at.startswith("2022-07-07T10:30")
+    assert "07/07/2022" in resposta
+    assert "Ancorada" not in resposta
+
+
+def test_foto_de_hoje_sem_telemetria_e_ancorada(campo, tmp_path):
+    resposta = campo.on_photo({}, foto(tmp_path, datetime(2026, 9, 12, 15, 0, 0)))
+    linha = storage.photos_frame().iloc[0]
+    assert linha.captured_at.startswith("2022-06-28")
+    assert "Ancorada" in resposta
+
+
+def test_leitura_da_foto_entra_no_contexto_da_conversa(campo, tmp_path, monkeypatch):
+    monkeypatch.setattr(vision, "classify", lambda *a, **k: vision.VisualReading(
+        visual_class="pipe_installation", confidence=0.9,
+        summary="Tubo de concreto assentado na vala, com dois trabalhadores.", pipe_visible=True))
+    campo.on_photo({}, foto(tmp_path, datetime(2022, 6, 28, 13, 1, 32)))
+    recente = campo.context()["fotos_recentes"][-1]
+    assert recente["leitura"] == "pipe_installation"
+    assert "Tubo de concreto" in recente["resumo"]
+    assert recente["estaca_m"] == 130
+
+
+def test_clima_do_dia_entra_no_contexto(campo, monkeypatch):
+    """"Vai chover hoje?" tem resposta: 28/06/2022 e um dia que o Open-Meteo conhece."""
+    from machine2pipe import weather as weather_module
+    monkeypatch.setattr(weather_module, "fetch", lambda *a, **k: weather_module.DayWeather(
+        day="2022-06-28", latitude=-26.6, longitude=-51.1, timezone="America/Sao_Paulo",
+        precipitation_mm=0.0, temperature_min_c=7.8, temperature_max_c=19.0))
+    campo.index.weather_of.cache_clear()
+    clima = campo.context()["clima_do_dia"]
+    assert clima["available"] and clima["rained"] is False
+    assert clima["rain_mm"] == 0.0 and clima["temperature_max_c"] == 19.0
+    assert "reanálise" in clima["note"]
