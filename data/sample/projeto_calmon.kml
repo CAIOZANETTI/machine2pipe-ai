@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Projeto provisorio — drenagem Calmon/SC</name>
+    <description>Alinhamento provisorio derivado da rota real de 2022-06-28. Substituir pelo KML do Google Earth.</description>
+    <Placemark>
+      <name>TR-01</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-01</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0999890,-26.5977901,0 -51.0997003,-26.5988337,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-02</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-02</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0997003,-26.5988337,0 -51.0994116,-26.5998772,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-03</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-03</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0994116,-26.5998772,0 -51.0991229,-26.6009207,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-04</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-04</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0991229,-26.6009207,0 -51.0988343,-26.6019643,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-05</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-05</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0988343,-26.6019643,0 -51.0985456,-26.6030078,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-06</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-06</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0985456,-26.6030078,0 -51.0982569,-26.6040514,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>TR-07</name>
+      <ExtendedData>
+        <Data name="segment_id"><value>TR-07</value></Data>
+        <Data name="service_type"><value>drainage_pipe</value></Data>
+        <Data name="diameter_mm"><value>400</value></Data>
+        <Data name="material"><value>concrete</value></Data>
+        <Data name="planned_length_m"><value>119.1</value></Data>
+        <Data name="planned_start"><value>2022-06-28</value></Data>
+        <Data name="planned_end"><value>2022-06-28</value></Data>
+      </ExtendedData>
+      <LineString><coordinates>-51.0982569,-26.6040514,0 -51.0979682,-26.6050949,0</coordinates></LineString>
+    </Placemark>
+    <Placemark>
+      <name>PV-01</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-01</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0999890,-26.5977901,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-02</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-02</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0997003,-26.5988337,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-03</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-03</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0994116,-26.5998772,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-04</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-04</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0991229,-26.6009207,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-05</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-05</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0988343,-26.6019643,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-06</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-06</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0985456,-26.6030078,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-07</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-07</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0982569,-26.6040514,0</coordinates></Point>
+    </Placemark>
+    <Placemark>
+      <name>PV-08</name>
+      <ExtendedData>
+        <Data name="structure_id"><value>PV-08</value></Data>
+        <Data name="service_type"><value>manhole</value></Data>
+      </ExtendedData>
+      <Point><coordinates>-51.0979682,-26.6050949,0</coordinates></Point>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,8 @@
+segment_id,name,service_type,diameter_mm,material,planned_length_m
+TR-01,Trecho 1,drainage_pipe,400,concrete,119.1
+TR-02,Trecho 2,drainage_pipe,400,concrete,119.1
+TR-03,Trecho 3,drainage_pipe,400,concrete,119.1
+TR-04,Trecho 4,drainage_pipe,400,concrete,119.1
+TR-05,Trecho 5,drainage_pipe,400,concrete,119.1
+TR-06,Trecho 6,drainage_pipe,400,concrete,119.1
+TR-07,Trecho 7,drainage_pipe,400,concrete,119.1
