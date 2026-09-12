@@ -6,6 +6,85 @@ This file is the execution backlog for humans and coding agents.
 
 The MVP runs on the web. GitHub stores the source; Railway runs Streamlit and the always-on worker; a persistent volume stores SQLite, the active KML/KMZ, and field photos.
 
+## Delivery strategy
+
+### Release targets
+
+| Release | Goal | Success signal |
+|---|---|---|
+| Hackathon MVP | Prove one complete real-data workflow | Telemetry + KMZ + photo + Telegram confirmation |
+| Company pilot | Run with one active project and real users | Daily use with auditable records |
+| V2 platform | Support multiple projects, machines, and OEM feeds | Second equipment adapter without changing the core |
+
+### Scope priority
+
+**Must have**
+
+- public Streamlit dashboard;
+- real JCB Parquet replay;
+- exported KML/KMZ project;
+- deterministic machine-to-segment matching;
+- Telegram photo reception;
+- one vision classification;
+- one agent question and engineer confirmation;
+- persistent auditable result.
+
+**Should have**
+
+- historical rain and elevation context;
+- daily summary;
+- Exa technical-research tool;
+- comparison with the historical field record.
+
+**Not in the hackathon MVP**
+
+- multiple OEM integrations;
+- automatic installed-length measurement;
+- survey-grade depth measurement;
+- full authentication and enterprise permissions;
+- autonomous machine control.
+
+### Parallel workstreams
+
+| Workstream | Owner | Files/area | Dependency |
+|---|---|---|---|
+| Platform and deployment | Agent A | Docker, Railway, config, storage | None |
+| Data and geospatial | Agent A | Parquet, KMZ, matching, events | Project file |
+| Telegram and photos | Agent B | Bot, EXIF, image storage | Storage contract |
+| Vision and agent | Agent B | Model, tools, Exa, prompts | Event contracts |
+| Engineering validation | Caio | KMZ, thresholds, historical records | Working outputs |
+| Integration and demo | Shared | Replay, dashboard, end-to-end test | All must-have items |
+
+Agents must follow `AGENTS.md` and avoid editing the same module concurrently.
+
+### Integration gates
+
+| Gate | Required result |
+|---|---|
+| G0 — Online | Streamlit URL and worker are running |
+| G1 — Data | Parquet and KMZ load with validated schemas |
+| G2 — Geometry | Machine is matched to a segment and chainage |
+| G3 — Evidence | Telegram photo is stored and matched |
+| G4 — Agent | Model asks for missing field confirmation |
+| G5 — Proof | Reply updates SQLite and dashboard |
+| G6 — Demo | Historical run completes reproducibly |
+
+Do not start the next gate if the previous gate cannot be demonstrated.
+
+### Suggested 24-hour build window
+
+| Time | Target |
+|---|---|
+| Hours 0–3 | G0: repository scaffold and Railway deployment |
+| Hours 3–7 | G1: Parquet and KMZ ingestion |
+| Hours 7–11 | G2: map, distance, segment, and chainage |
+| Hours 11–15 | G3: Telegram and photo metadata |
+| Hours 15–19 | G4: vision model, agent tools, and Exa |
+| Hours 19–22 | G5: persistence and dashboard update |
+| Hours 22–24 | G6: tests, fallback demo, README, and video |
+
+If time becomes constrained, remove should-have items before touching the complete evidence-to-confirmation loop.
+
 ## Definition of the MVP
 
 A judge can:
@@ -178,6 +257,14 @@ This phase begins only after the hackathon MVP is validated.
 - [ ] Run a pilot with one active company project.
 
 **Acceptance:** at least two different equipment sources use the same canonical event pipeline without changing the engineering engine.
+
+## Immediate next actions
+
+1. Caio exports the Google Earth project as KML/KMZ and makes the historical field record available as evaluation ground truth.
+2. Agent A implements P0 and publishes the first Railway URL.
+3. Agent A audits the real Parquet and freezes the canonical telemetry schema.
+4. Agent B starts Telegram only after the storage and event contracts exist.
+5. Both agents integrate at G3; no parallel redesign of shared schemas.
 
 ## Non-negotiable guardrails
 
