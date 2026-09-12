@@ -12,6 +12,29 @@ Built by **Caio Zanetti / Ctrl+Alt+Construct** for the AI Tinkerers **Agents, Ev
 
 The public links provide visual traceability for the demo. Runtime processing uses the original Parquet file, original photo files, and an exported KML/KMZ file rather than scraping the shared pages.
 
+## Verified against the real data
+
+Everything below was measured, not assumed. The audit came before the adapter.
+
+| Check | Result |
+|---|---|
+| Telemetry volume | 78,365 rows, 2022-01-01 to 2023-08-31 |
+| `raio_m` semantics | Displacement from the previous point, not a GPS accuracy radius: correlation 1.0 against the haversine of `lat_ant`/`lon_ant`, mean absolute error 0.13 m |
+| Works location | 77,899 of 78,365 points within 30 km of Calmon/SC; the first 23 days of January are the yard in São José dos Pinhais/PR, before transport |
+| Demo day | 2022-06-28 — 296 points, 175 with the engine running, an 11.9 h shift, and three field photos |
+| Work area shape | 834 m along its principal axis against 66 m of lateral spread: the shape of a street trench |
+| Segment matching | 136 of the day's 296 points inside a 25 m corridor, with chainage and offset |
+| Photo against telemetry | The three photos of 28/06 agree with the machine's position to within 20 to 53 m, 28 to 271 s apart |
+| Deterministic events | 29 on the demo day, reproducible across runs |
+
+Two findings changed the design. Telegram strips EXIF from images sent as photos, and Google
+Photos drops GPS from any resized copy — so photos are matched to a segment **by capture time
+against the telemetry**, which already knows where the machine stood. The photo's own GPS, when
+it survives, is a cross-check. And dwell is measured as time spent within a radius rather than
+low movement between consecutive points: a backhoe digging a trench stays in place while its
+GPS jitters by tens of metres, and the first formulation never recognised a machine that was
+plainly parked and working.
+
 ## Objective
 
 Machine2Pipe AI answers four practical questions:
@@ -206,7 +229,7 @@ Example reply:
 
 ### Dashboard
 
-The Streamlit dashboard will show:
+The dashboard is a single page served by the FastAPI service. It shows:
 
 - project alignment and structures;
 - machine route and current simulated position;
@@ -247,19 +270,24 @@ For the hackathon MVP, the bot will run by long polling inside the Railway worke
 
 The MVP is web-first. The GitHub repository is deployed to Railway, so the application continues running when the developer's computer is off.
 
-- **Streamlit:** public dashboard and initial KML/KMZ upload.
-- **Worker:** telemetry replay, Telegram long polling, photo processing, and agent calls.
-- **Persistent volume:** SQLite database, uploaded project, and downloaded photos.
-- **External APIs:** Telegram, vision/language model, Exa, Open-Meteo, and OpenTopoData.
+One Railway service runs two processes over one persistent volume:
 
-Streamlit Community Cloud may be used later for a dashboard-only deployment, but it is not the primary runtime for the always-on worker.
+- **API and panel:** `uvicorn` serving `web/index.html` and `/api/state`.
+- **Worker:** telemetry replay, Telegram long polling, photo processing, and agent calls.
+- **Persistent volume:** SQLite database, the active project, and downloaded photos.
+- **External APIs:** Telegram, vision/language model, Exa, and Open-Meteo.
+
+Hosting the panel and the worker separately was considered and rejected: the panel exists to
+show what the Telegram conversation recorded, and two machines cannot share one SQLite file.
+`/health` reports whether each secret reached the container, so a variable saved but never
+applied to a deploy is diagnosable from the browser.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     A["GitHub repository"] --> B["Railway service"]
-    B --> C["Streamlit dashboard"]
+    B --> C["API and HTML panel"]
     B --> D["Worker and agent"]
     D <--> E["Telegram"]
     B --> F["Persistent storage"]
@@ -273,12 +301,12 @@ flowchart TD
 | Language | Python 3.11+ |
 | Data | pandas, PyArrow |
 | Geospatial | Shapely, PyProj |
-| KML/KMZ | fastkml or lxml, zipfile |
+| KML/KMZ | lxml, zipfile |
 | Agent model | OpenAI API or OpenRouter-compatible model |
 | Web research | Exa API |
 | Messaging | Telegram Bot API |
 | Weather/elevation | Open-Meteo, OpenTopoData |
-| Dashboard | Streamlit, Plotly/PyDeck |
+| API and panel | FastAPI, uvicorn, Leaflet |
 | Validation | Pydantic |
 | MVP storage | SQLite + persistent volume |
 | Tests | pytest |
@@ -292,10 +320,11 @@ Target layout. Modules not yet written are listed in `docs/IMPLEMENTATION_PLAN.m
 
 ```text
 machine2pipe-ai/
-├── app/
-│   └── streamlit_app.py
+├── web/
+│   └── index.html
 ├── src/machine2pipe/
 │   ├── agent.py
+│   ├── api.py
 │   ├── config.py
 │   ├── events.py
 │   ├── replay.py
@@ -369,39 +398,39 @@ Never commit API keys, Telegram tokens, private files, or an unapproved telemetr
 
 ### Phase 0 — Deploy the web foundation
 
-- [ ] Add Dockerfile, Railway configuration, start command, and health check.
-- [ ] Create the persistent `/data` volume.
-- [ ] Configure secrets outside GitHub.
-- [ ] Deploy a minimal Streamlit dashboard and worker.
+- [x] Add Dockerfile, Railway configuration, start command, and health check.
+- [x] Create the persistent `/data` volume.
+- [x] Configure secrets outside GitHub.
+- [x] Deploy the panel and the worker as one service.
 
 **Deliverable:** public dashboard and always-on worker running from GitHub.
 
 ### Phase 1 — Prove the data connection
 
-- [ ] Audit the real Parquet columns and dates.
-- [ ] Create the JCB 2022 adapter.
+- [x] Audit the real Parquet columns and dates.
+- [x] Create the JCB 2022 adapter.
 - [ ] Create the Google Earth demo KMZ in the telemetry area.
-- [ ] Parse lines, points, and project attributes.
-- [ ] Plot telemetry and project together.
+- [x] Parse lines, points, and project attributes.
+- [x] Plot telemetry and project together.
 
 **Deliverable:** machine path and pipe project on one map.
 
 ### Phase 2 — Build the engineering engine
 
-- [ ] Match GPS points to segments.
-- [ ] Calculate chainage, distance, movement, and dwell.
-- [ ] Implement configurable event rules.
-- [ ] Add elevation and historical weather.
-- [ ] Write structured events to SQLite.
+- [x] Match GPS points to segments.
+- [x] Calculate chainage, distance, movement, and dwell.
+- [x] Implement configurable event rules.
+- [x] Add historical weather. Elevation is out of scope for the MVP.
+- [x] Write structured events to SQLite.
 
 **Deliverable:** reproducible events without AI.
 
 ### Phase 3 — Put the agent in Telegram
 
-- [ ] Create the Telegram bot.
-- [ ] Receive and store original photos.
-- [ ] Extract EXIF time and GPS.
-- [ ] Match photos to segments and telemetry windows.
+- [x] Create the Telegram bot.
+- [x] Receive and store original photos.
+- [x] Extract EXIF time and GPS.
+- [x] Match photos to segments and telemetry windows.
 - [ ] Add vision classification with confidence and limitations.
 - [ ] Implement status and progress commands.
 - [ ] Connect the language model.
@@ -417,7 +446,7 @@ Never commit API keys, Telegram tokens, private files, or an unapproved telemetr
 - [ ] Trigger at least one meaningful event.
 - [ ] Ask the engineer for confirmation.
 - [ ] Record the answer and update progress.
-- [ ] Show the result in Streamlit.
+- [ ] Show the result on the panel.
 - [ ] Record the hackathon demo.
 
 ## Definition of done

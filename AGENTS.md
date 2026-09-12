@@ -110,7 +110,7 @@ Expected commands once the scaffold exists:
 
 ```bash
 pytest
-streamlit run app/streamlit_app.py
+uvicorn machine2pipe.api:app --reload
 python worker.py
 ```
 
