@@ -233,6 +233,32 @@ def confirmed_progress(database_path: Path | None = None) -> pd.DataFrame:
     )
 
 
+def pending_events(
+    until: str | None = None, database_path: Path | None = None
+) -> pd.DataFrame:
+    """Eventos que o agente ainda nao tratou, em ordem cronologica.
+
+    Um evento e considerado tratado quando existe uma acao do agente para ele. E assim
+    que o loop evita perguntar duas vezes a mesma coisa quando o replay e reiniciado.
+    """
+    query = (
+        "SELECT e.* FROM events e"
+        " LEFT JOIN agent_actions a ON a.event_id = e.event_id"
+        " WHERE a.action_id IS NULL"
+    )
+    parameters: tuple = ()
+    if until:
+        query += " AND e.timestamp <= ?"
+        parameters = (until,)
+    return _frame(query + " ORDER BY e.timestamp", parameters, database_path)
+
+
+def handled_event_ids(database_path: Path | None = None) -> set[str]:
+    frame = _frame("SELECT DISTINCT event_id FROM agent_actions WHERE event_id IS NOT NULL",
+                   database_path=database_path)
+    return set(frame.event_id) if not frame.empty else set()
+
+
 def confirmed_segment_ids(database_path: Path | None = None) -> set[str]:
     frame = confirmations_frame(database_path)
     return set(frame.segment_id) if not frame.empty else set()

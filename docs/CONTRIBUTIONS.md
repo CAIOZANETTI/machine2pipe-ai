@@ -25,6 +25,7 @@ Add one row for each meaningful code or documentation delivery.
 | 2026-09-12 | Caio + Claude | P2 — Weather and photo evidence | `pending` | weather.py, scripts/seed_photos.py, api.py, web/index.html | Open-Meteo archive as day context with explicit limits and graceful failure; the album's real photos matched to segment and chainage by capture time against telemetry, with photo GPS as a cross-check (20-53 m agreement on 28/06); photo markers and image serving on the panel; 39 tests |
 | 2026-09-12 | Caio + Claude | P0 — Deploy diagnostics | `pending` | start.sh, api.py | The worker is supervised and restarted instead of dying silently behind a green deployment; /health reports whether each secret reached the container, without ever revealing a value, and whether /data is writable |
 | 2026-09-12 | Caio + Claude | Documentation alignment | `pending` | README.md, AGENTS.md | README brought in line with the shipped system (FastAPI panel, single service, repository layout, build plan status) and a Verified against the real data section added with the measured audit results |
+| 2026-09-12 | Caio + Claude | Agent work queue | `pending` | storage.py, api.py, docs/TASK_SPLIT.md | Pending-event queue for the agent loop, cleared by recording an agent action so a restarted replay never repeats a question; deployment diagnosed from /health (no variable reached the container); Open-Meteo confirms 0.0 mm of rain on the demo day, which rules out the rain phrasing |
 
 ## Attribution rules
 

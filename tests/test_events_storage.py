@@ -99,3 +99,28 @@ def test_progresso_confirmado_soma_por_trecho(banco):
     assert total.loc[0, "confirmed_length_m"] == 32
     assert total.loc[0, "confirmations"] == 2
     assert storage.confirmed_segment_ids(banco) == {"TR-04"}
+
+
+def test_fila_de_pendentes_exclui_o_que_o_agente_ja_tratou(casado, banco):
+    frame, projeto = casado
+    lista = events.detect(frame, project=projeto, **LIMIARES)
+    storage.record_events(lista, banco)
+    assert len(storage.pending_events(database_path=banco)) == len(lista)
+
+    storage.record_agent_action(
+        event_id=lista[0].event_id, decision="ask", confidence=0.8,
+        message="Quantos metros foram assentados?", database_path=banco,
+    )
+    pendentes = storage.pending_events(database_path=banco)
+    assert len(pendentes) == len(lista) - 1
+    assert lista[0].event_id not in set(pendentes.event_id)
+    assert storage.handled_event_ids(banco) == {lista[0].event_id}
+
+
+def test_fila_respeita_o_tempo_simulado(casado, banco):
+    frame, projeto = casado
+    lista = events.detect(frame, project=projeto, **LIMIARES)
+    storage.record_events(lista, banco)
+    corte = lista[2].timestamp.isoformat()
+    ate_ali = storage.pending_events(until=corte, database_path=banco)
+    assert all(t <= corte for t in ate_ali.timestamp)

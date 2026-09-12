@@ -186,6 +186,20 @@ def state() -> JSONResponse:
     )
 
 
+@app.get("/api/events/pending")
+def pending() -> JSONResponse:
+    """Eventos ja ocorridos no tempo simulado e ainda nao tratados pelo agente.
+
+    E a fila que o worker consome: o agente le daqui, decide, e registra a acao, o que
+    tira o evento da fila. Reiniciar o replay nao gera pergunta repetida.
+    """
+    _, matched, _ = _day()
+    now = replay.simulated_now(matched.timestamp.iloc[0], matched.timestamp.iloc[-1])
+    frame = storage.pending_events(until=now.isoformat())
+    return JSONResponse({"simulated_time": now.isoformat(), "count": int(len(frame)),
+                         "events": frame.to_dict("records")})
+
+
 @app.post("/api/replay/{action}")
 def control(action: str, speed: float | None = None) -> dict:
     actions = {"start": replay.start, "pause": replay.pause, "reset": replay.reset}

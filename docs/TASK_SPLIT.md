@@ -123,11 +123,30 @@ The README and the implementation plan disagreed on this record. This is the set
 `confirmed_by` records the human, never the model. A quantity with no human source is not
 written. Codex calls `storage.record_confirmation(...)`; Codex does not write SQL.
 
+### The agent's work queue — Claude provides, Codex consumes
+
+```
+GET /api/events/pending   ->  {"simulated_time": ..., "count": n, "events": [...]}
+storage.pending_events(until=...)  ->  the same queue, in-process
+storage.record_agent_action(event_id=..., decision=..., message=...)  ->  removes it from the queue
+```
+
+An event leaves the queue once an agent action references it, so restarting the replay does
+not ask the engineer the same question twice. Only events whose timestamp has already been
+reached in simulated time appear.
+
 ### Other boundaries
 
 - `tools.py` — Codex defines the tool surface the model sees, and each tool calls an existing
   deterministic function. No tool computes geometry or quantities on its own.
 - `config.py` — Claude owns it. Need a new setting? Ask; do not edit.
+
+### Note on the demo day's weather
+
+Open-Meteo, queried from the deployed service, reports **0.0 mm of rain on 2022-06-28**, with
+temperatures from 7.8 to 19.0 °C. It was a dry, cold winter day. The rain phrasing in the
+README's example message therefore cannot be used for this day — the narrative the data
+supports is an 11.9 h shift on TR-06 with three photographs and nothing confirmed.
 
 ## Commit convention
 
