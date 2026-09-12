@@ -333,6 +333,7 @@ machine2pipe-ai/
 │   ├── telegram_bot.py
 │   ├── tools.py
 │   ├── weather.py
+│   ├── activity.py
 │   ├── agent.py
 │   ├── tools.py
 │   ├── vision.py
@@ -394,7 +395,17 @@ PROJECT_CORRIDOR_M=25
 LONG_DWELL_MINUTES=45
 DWELL_MOVEMENT_M=20
 GPS_GAP_MINUTES=30
+STRUCTURE_RADIUS_M=50
+TRANSIT_SPEED_KMH=3
+TRANSIT_JUMP_M=100
+SHORT_STOP_MINUTES=15
 ```
+
+The last four drive `activity.py`, the behaviour reading: how close the machine must be to a
+KML support point (canteiro, jazida, posto) to be "at" it; above which speed or jump a
+movement is transit rather than work; and how long the engine may stay off at the front
+before the front ends (the crew positions the pipe with the engine off and the operator
+restarts to dig).
 
 `REPLAY_SPEED` is 60, not 600: at 600x a 45-minute dwell fires in 4.5 seconds and the
 engineer cannot answer in Telegram before the window closes.

@@ -100,6 +100,12 @@ button.primary { background: var(--machine); border-color: var(--machine); color
 .track i { display: block; height: 100%; background: var(--confirmed); border-radius: 5px;
            box-shadow: 0 0 0 2px var(--surface-1); transition: width .5s; }
 .empty { padding: 18px 14px; color: var(--text-muted); font-size: 13px; }
+.daybar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin: 14px 14px 8px; background: var(--surface-2, rgba(127,127,127,.12)); }
+.daybar i { display: block; height: 100%; min-width: 1px; }
+.daykey { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 14px 12px; font-size: 12px; color: var(--text-secondary); }
+.daykey i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.fronts { border-top: 1px solid var(--border, rgba(127,127,127,.2)); }
+.fronts .ev .m { color: var(--text-secondary); }
 footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width: 72ch; }
 </style>
 </head>
@@ -118,6 +124,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     <button onclick="cmd('pause')">⏸ Pausar</button>
     <button onclick="cmd('reset')">↺ Reiniciar</button>
     <button onclick="zerarDemo()" title="Apaga decisões, confirmações e fotos do Telegram para gravar de novo">⌫ Zerar conversa</button>
+    <button onclick="enquadrar()" title="Volta o mapa para o traçado do projeto">⌖ Enquadrar</button>
     <button onclick="toggleTheme()">◐ Tema</button>
     <div class="clock"><b id="time">--:--</b><small id="speed"></small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
@@ -136,6 +143,11 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
       <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--text-secondary);vertical-align:middle;margin-right:6px"></span>Foto de campo</span>
       <span id="corridor"></span>
     </div>
+  </section>
+
+  <section>
+    <h2>O que a máquina estava fazendo</h2>
+    <div class="card" id="activity"><div class="empty">Inicie o replay. A leitura cruza posição no projeto, motor e deslocamento.</div></div>
   </section>
 
   <section>
@@ -184,10 +196,11 @@ function iniciarMapa() {
     return;
   }
   map = L.map('map', {zoomControl:true, attributionControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution:'© OpenStreetMap, © CARTO', maxZoom:20
+  // OpenStreetMap direto: a CARTO passou a exigir chave e carimbava "API KEY REQUIRED".
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap contributors', maxZoom:19
   }).addTo(map);
-  map.setView([-26.6034, -51.0984], 16);
+  map.setView([-26.6046, -51.0994], 17);
   camadaProjeto = L.layerGroup().addTo(map);
   camadaTrilha = L.layerGroup().addTo(map);
   camadaFotos = L.layerGroup().addTo(map);
@@ -227,8 +240,16 @@ function desenharProjeto(dados) {
     L.circleMarker(s.coordinates[0], {radius:4, color:cor, fillColor:cor, fillOpacity:.55, weight:1})
       .addTo(camadaProjeto);
   });
-  if (!centralizado && limites.length) { map.fitBounds(limites, {padding:[40,40]}); centralizado = true; }
+  if (!centralizado && limites.length) {
+    // O container pode ainda nao ter altura na primeira chamada; sem invalidateSize o
+    // fitBounds calcula o zoom sobre um mapa de tamanho zero e cai longe do projeto.
+    map.invalidateSize();
+    map.fitBounds(limites, {padding:[40,40], maxZoom:17});
+    centralizado = true;
+  }
 }
+
+function enquadrar() { centralizado = false; atualizar(); }
 
 function desenharMaquina(dados) {
   if (!map) return;
@@ -238,11 +259,15 @@ function desenharMaquina(dados) {
     L.polyline(dados.track, {color:cor, weight:2, opacity:.75}).addTo(camadaTrilha);
   }
   const m = dados.machine;
-  L.circleMarker([m.latitude, m.longitude], {
+  const posicao = [m.latitude, m.longitude];
+  L.circleMarker(posicao, {
     radius:8, color:'#fff', weight:2, fillColor:cor, fillOpacity:1
   }).addTo(camadaTrilha).bindTooltip(
     `${m.machine_id} · ${m.engine_on ? 'motor ligado' : 'motor desligado'}` +
     (m.segment_id ? ` · ${m.segment_id} estaca ${num(m.chainage_m,1)} m` : ' · fora do corredor'));
+  // A maquina sai do corredor varias vezes no dia (posto, jazida). O mapa a segue
+  // quando ela some da tela, em vez de deixar o replay andar num canto invisivel.
+  if (centralizado && !map.getBounds().contains(posicao)) map.panTo(posicao, {animate:true});
 }
 
 function indicadores(d) {
@@ -256,7 +281,7 @@ function indicadores(d) {
     ['Trecho ativo', m.segment_id || '—', m.segment_id ? `estaca ${num(m.chainage_m,1)} m · ${num(m.distance_to_axis_m,1)} m do eixo` : 'fora do corredor'],
     ['Motor', m.engine_on ? 'Ligado' : 'Desligado', m.event_type ? m.event_type.replace(/_/g,' ') : ''],
     ['Jornada', `${num(m.shift_hours,1)} h`, `${m.points} pontos de telemetria`],
-    ['Deslocamento', `${num(m.distance_km,2)} km`, d.weather && d.weather.rain_mm ? `chuva ${num(d.weather.rain_mm,1)} mm no dia` : 'acumulado no dia'],
+    ['Frente de serviço', `${num((d.activity||{}).front_hours||0,1)} h`, `${num(m.distance_km,2)} km rodados no dia`],
     ['Fotos de campo', String((d.photos||[]).length), 'casadas por horário'],
     ['Confirmado', `${num(confirmado)} m`, `de ${num(previsto)} m previstos`],
     ['Aguardando engenheiro', String(pendentes), pendentes ? 'pergunta em aberto no Telegram' : 'nada pendente'],
@@ -292,6 +317,43 @@ function trechos(d) {
         <span class="num"><b>${num(s.confirmed_length_m)} m</b> de ${num(s.planned_length_m)} m</span></div>
       <div class="track"><i style="width:${pct}%"></i></div></div>`;
   }).join('');
+}
+
+const ESTADOS = {
+  frente_de_servico: {rotulo:'frente de serviço', cor:'var(--confirmed)'},
+  deslocando:        {rotulo:'deslocando',        cor:'var(--machine)'},
+  no_canteiro:       {rotulo:'no canteiro',       cor:'var(--project)'},
+  na_jazida:         {rotulo:'na jazida',         cor:'var(--warning)'},
+  abastecendo:       {rotulo:'abastecendo',       cor:'var(--serious)'},
+  parada:            {rotulo:'parada, motor ligado', cor:'var(--text-muted)'},
+  desligada:         {rotulo:'desligada',         cor:'var(--border, rgba(127,127,127,.35))'},
+};
+function comportamento(d) {
+  const alvo = document.getElementById('activity');
+  const a = d.activity;
+  if (!a || !a.episodes.length) return;
+  const inicio = new Date(d.replay.day_start), fim = new Date(d.replay.day_end);
+  const total = (fim - inicio) || 1;
+  const barra = a.episodes.map(e => {
+    const s = ESTADOS[e.state] || {rotulo:e.state, cor:'var(--text-muted)'};
+    const w = 100 * (new Date(e.end) - new Date(e.start)) / total;
+    return `<i style="width:${w}%;background:${s.cor}" title="${s.rotulo} · ${hora(e.start)}–${hora(e.end)} · ${num(e.minutes)} min"></i>`;
+  }).join('');
+  const presentes = Object.keys(a.hours);
+  const legenda = presentes.map(k => {
+    const s = ESTADOS[k] || {rotulo:k, cor:'var(--text-muted)'};
+    return `<span><i style="background:${s.cor}"></i>${s.rotulo} ${num(a.hours[k],1)} h</span>`;
+  }).join('');
+  const frentes = a.fronts.filter(f => f.minutes >= 5).slice().reverse().map(f => {
+    const faixa = f.chainage_min_m == null ? '' :
+      (f.chainage_max_m - f.chainage_min_m < 10 ? `estaca ${num(f.chainage_min_m)} m` : `estacas ${num(f.chainage_min_m)}–${num(f.chainage_max_m)} m`);
+    const prova = f.photo_ids.length ? ` · 📷 ${f.photo_ids.length} foto(s) como evidência` : '';
+    return `<div class="ev"><span class="ico" style="color:var(--confirmed)">▮</span>
+      <span class="body"><span class="t">Frente de serviço · ${faixa}</span><br><span class="m">${num(f.minutes)} min, motor ligado ${num(f.engine_on_minutes)} min${prova}</span></span>
+      <time>${hora(f.start)}–${hora(f.end)}</time></div>`;
+  }).join('');
+  alvo.innerHTML = `<div class="daybar">${barra}</div><div class="daykey">${legenda}</div>` +
+    (frentes ? `<div class="fronts timeline">${frentes}</div>` : '');
 }
 
 const FALAS = {
@@ -349,7 +411,7 @@ async function atualizar() {
     document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
     document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
-    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d);
+    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d); comportamento(d);
   } catch (erro) {
     document.getElementById('speed').textContent = 'sem resposta da API';
   }

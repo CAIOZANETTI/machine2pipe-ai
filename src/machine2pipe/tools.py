@@ -121,11 +121,26 @@ def confirmation_history(*, limit: int = 5) -> dict[str, Any]:
     }
 
 
+@tool("day_activity")
+def day_activity(*, summary: dict[str, Any]) -> dict[str, Any]:
+    """Horas por estado e frentes de servico ate o evento, lidas pelo Python.
+
+    Entra pelo chamador porque os episodios ja estao calculados no processo; aqui so
+    ficam as frentes com faixa de estacas e fotos, que e o que o agente cita.
+    """
+    frentes = [
+        {k: f[k] for k in ("start", "end", "minutes", "chainage_min_m", "chainage_max_m", "photo_ids")}
+        for f in summary.get("fronts", []) if f.get("minutes", 0) >= 5
+    ]
+    return {"hours": summary.get("hours", {}), "front_hours": summary.get("front_hours"), "fronts": frentes}
+
+
 def briefing(
     event: dict[str, Any],
     *,
     project: Project | None = None,
     location: tuple[float, float] | None = None,
+    activity_summary: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], ToolLog]:
     """Reune o que o agente precisa saber sobre um evento, e o log de como soube.
 
@@ -139,6 +154,8 @@ def briefing(
         "confirmado_hoje": registro.run("confirmation_history"),
         "fotos": registro.run("photo_evidence", segment_id=event.get("segment_id")),
     }
+    if activity_summary is not None:
+        dados["jornada"] = registro.run("day_activity", summary=activity_summary)
     # O evento nao carrega coordenada: quem chama sabe onde a maquina estava e informa.
     if location:
         dados["clima"] = registro.run(

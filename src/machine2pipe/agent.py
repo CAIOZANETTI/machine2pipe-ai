@@ -86,7 +86,9 @@ Escolha uma decisao:
 - ask: so o engenheiro pode fechar a informacao que falta.
 
 Use ask quando houver avanco de servico sem quantidade confirmada, ou uma parada longa sem
-motivo conhecido. Nao pergunte o que a telemetria ja respondeu. Uma pergunta por evento, em
+motivo conhecido. O campo context.activity e a leitura de comportamento feita pelo Python
+(frentes de servico com faixa de estacas, horas, fotos como evidencia): cite-a na pergunta,
+porque e o que mostra ao engenheiro que voce sabe o que a maquina fez. Nao pergunte o que a telemetria ja respondeu. Uma pergunta por evento, em
 portugues do Brasil, curta, citando trecho e estaca, e pedindo exatamente um dado: metros
 executados ou motivo da interrupcao. Trate o engenheiro como colega, sem formalidade vazia."""
 
@@ -157,6 +159,12 @@ def default_message(event: dict[str, Any], decision: str) -> str:
     parada = _quantity(event.get("dwell_minutes")) or 0.0
 
     if decision == ASK and tipo == event_rules.PROGRESS_UNCONFIRMED:
+        leitura = (event.get("context") or {}).get("activity")
+        if leitura and not leitura.startswith("nenhuma"):
+            return (
+                f"Leitura da telemetria em {trecho}: {leitura}. Nada foi confirmado ate agora. "
+                "Quantos metros de tubo foram assentados?"
+            )
         return (
             f"A maquina trabalhou em {onde} e nada foi confirmado ate agora. "
             "Quantos metros de tubo foram assentados nesse trecho?"
