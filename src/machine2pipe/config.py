@@ -42,7 +42,7 @@ class Config:
     llm_model: str = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
     # Um evento silencioso nao existe para o engenheiro; um evento repetido cansa.
     # O loop do agente acorda neste intervalo de tempo real, nao simulado.
-    agent_tick_seconds: float = float(os.getenv("AGENT_TICK_SECONDS", "20"))
+    agent_tick_seconds: float = float(os.getenv("AGENT_TICK_SECONDS", "10"))
     exa_api_key: str = os.getenv("EXA_API_KEY", "")
 
     replay_date: str = os.getenv("REPLAY_DATE", "2022-06-28")
