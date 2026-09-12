@@ -266,7 +266,7 @@ def open_question(database_path: Path | None = None) -> dict[str, Any] | None:
     """
     with connect(database_path) as connection:
         row = connection.execute(
-            "SELECT a.event_id, a.message, e.segment_id FROM agent_actions a"
+            "SELECT a.event_id, a.message, e.segment_id, e.event_type FROM agent_actions a"
             " LEFT JOIN events e ON e.event_id = a.event_id"
             " WHERE a.decision = 'ask'"
             "   AND NOT EXISTS (SELECT 1 FROM confirmations c WHERE c.event_id = a.event_id)"

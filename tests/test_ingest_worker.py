@@ -191,3 +191,39 @@ def test_zerar_a_demonstracao_preserva_eventos_e_album(index, campo, tmp_path):
     assert len(storage.events_frame()) == 18
     assert list(storage.photos_frame().photo_id) == ["album_x"]
     assert len(storage.pending_events()) == 18, "a pergunta volta a ser feita no proximo ensaio"
+
+
+def test_status_diz_que_dia_e_e_o_que_a_maquina_faz(index, campo):
+    inicio, _ = index.day_bounds
+    replay.jump_to(inicio + pd.Timedelta(hours=8), inicio)  # 13:21 na obra
+    texto = campo.status()
+    assert "28/06/2022" in texto
+    assert "13:21" in texto
+    assert "frente de serviço" in texto
+    assert "0 m confirmados de 255 m" in texto
+    assert "Nenhuma pergunta em aberto" in texto
+
+
+def test_status_com_replay_parado_orienta(campo):
+    texto = campo.status()
+    assert "parado" in texto and "inicie o replay" in texto.lower()
+
+
+def test_avanco_sem_confirmacao_substitui_pergunta_menor(index, campo, banco):
+    """A pergunta do dia nao pode ficar engolida atras de uma parada qualquer."""
+    base = evento_de_avanco(index)
+    menor = {**base, "event_id": "evt_parada", "event_type": "long_dwell", "dwell_minutes": 60.0}
+    campo.handle_event(menor)
+    assert campo.pending["event_id"] == "evt_parada"
+    decisao = campo.handle_event({**base, "event_id": "evt_avanco"})
+    assert decisao.decision == agent.ASK
+    assert campo.pending["event_id"] == "evt_avanco"
+    assert len(campo.bot.enviadas) == 2
+
+
+def test_pergunta_menor_nao_substitui_avanco(index, campo, banco):
+    base = evento_de_avanco(index)
+    campo.handle_event({**base, "event_id": "evt_avanco"})
+    decisao = campo.handle_event({**base, "event_id": "evt_parada", "event_type": "long_dwell"})
+    assert decisao.decision == agent.LOG
+    assert campo.pending["event_id"] == "evt_avanco"

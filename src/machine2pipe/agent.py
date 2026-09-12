@@ -188,6 +188,19 @@ def default_message(event: dict[str, Any], decision: str) -> str:
     return f"{_short(event)}."
 
 
+def ceiling(event: dict[str, Any]) -> str:
+    """Ate onde o modelo pode elevar a decisao para este evento.
+
+    Um nivel acima do piso, e nunca `ask` num evento sem trecho: a resposta a essa pergunta
+    nao teria onde ser gravada, porque `record_confirmation` exige o trecho.
+    """
+    piso = FALLBACK.get(str(event.get("event_type")), LOG)
+    teto = DECISIONS[min(DECISIONS.index(piso) + 1, len(DECISIONS) - 1)]
+    if not event.get("segment_id") and DECISIONS.index(teto) > DECISIONS.index(NOTIFY):
+        teto = NOTIFY
+    return teto
+
+
 def decide(
     event: dict[str, Any],
     *,
@@ -231,11 +244,17 @@ def decide(
     escolha = str(dados.get("decision", "")).strip()
     if escolha not in DECISIONS:
         escolha = piso
-    # O modelo pode elevar o cuidado, nunca reduzi-lo abaixo da regra: se o motor achou que
-    # o evento merece pergunta, silencia-lo perderia a unica chance de confirmar o servico.
+    teto = ceiling(event)
+    # O modelo pode elevar o cuidado um nivel, nunca reduzi-lo abaixo da regra nem subir
+    # dois: em producao ele transformou uma falha de GPS as 07:05 em "parada de 102 min,
+    # qual o motivo?", abriu a pergunta do dia com isso e a pergunta que importava — o
+    # avanco sem confirmacao — ficou engolida atras dela.
     if DECISIONS.index(escolha) < DECISIONS.index(piso):
         log.info("decisao do modelo (%s) abaixo do piso (%s); mantendo o piso", escolha, piso)
         escolha = piso
+    elif DECISIONS.index(escolha) > DECISIONS.index(teto):
+        log.info("decisao do modelo (%s) acima do teto (%s); mantendo o teto", escolha, teto)
+        escolha = teto
 
     mensagem = str(dados.get("message", "")).strip()
     if escolha in {NOTIFY, ASK} and not mensagem:

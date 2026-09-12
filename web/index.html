@@ -105,6 +105,12 @@ button.primary { background: var(--machine); border-color: var(--machine); color
 .daykey { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 0 14px 12px; font-size: 12px; color: var(--text-secondary); }
 .daykey i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 .fronts { border-top: 1px solid var(--border, rgba(127,127,127,.2)); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 14px; }
+.gallery figure { margin: 0; }
+.gallery img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; display: block; background: var(--surface-2, rgba(127,127,127,.12)); }
+.gallery figcaption { font-size: 12px; line-height: 1.45; margin-top: 6px; color: var(--text-secondary); }
+.gallery figcaption b { color: var(--text); }
+.gallery .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--confirmed); color: #fff; margin-top: 3px; }
 .fronts .ev .m { color: var(--text-secondary); }
 footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width: 72ch; }
 </style>
@@ -126,7 +132,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     <button onclick="zerarDemo()" title="Apaga decisões, confirmações e fotos do Telegram para gravar de novo">⌫ Zerar conversa</button>
     <button onclick="enquadrar()" title="Volta o mapa para o traçado do projeto">⌖ Enquadrar</button>
     <button onclick="toggleTheme()">◐ Tema</button>
-    <div class="clock"><b id="time">--:--</b><small id="speed"></small></div>
+    <div class="clock"><small id="day" style="margin-right:8px"></small><b id="time">--:--</b><small id="speed"></small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
   </div>
 
@@ -148,6 +154,11 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
   <section>
     <h2>O que a máquina estava fazendo</h2>
     <div class="card" id="activity"><div class="empty">Inicie o replay. A leitura cruza posição no projeto, motor e deslocamento.</div></div>
+  </section>
+
+  <section>
+    <h2>Evidências de campo</h2>
+    <div class="card" id="evidence"><div class="empty">As fotos aparecem no instante em que foram tiradas, situadas na estaca em que a telemetria diz que a máquina estava.</div></div>
   </section>
 
   <section>
@@ -356,6 +367,21 @@ function comportamento(d) {
     (frentes ? `<div class="fronts timeline">${frentes}</div>` : '');
 }
 
+function evidencias(d) {
+  const alvo = document.getElementById('evidence');
+  const fotos = d.photos || [];
+  if (!fotos.length) return;
+  const frentes = (d.activity && d.activity.fronts) || [];
+  alvo.innerHTML = '<div class="gallery">' + fotos.map(f => {
+    const frente = frentes.find(x => x.photo_ids.includes(f.photo_id));
+    const onde = f.segment_id ? `${f.segment_id} · estaca ${num(f.chainage_m)} m` : 'fora do corredor';
+    const leitura = f.visual_class ? `${f.visual_class} (${num(100*f.confidence)}%)` : 'sem leitura visual';
+    const prova = frente ? `<span class="tag">evidência de execução · frente ${hora(frente.start)}–${hora(frente.end)}</span>` : '';
+    return `<figure><img src="/api/photo/${f.photo_id}" loading="lazy" alt="">
+      <figcaption><b>${hora(f.captured_at)}</b> · ${onde}<br>${leitura}<br>${prova}</figcaption></figure>`;
+  }).join('') + '</div>';
+}
+
 const FALAS = {
   ask:       {ico:'?', rotulo:'Agente perguntou',     cor:'var(--warning)'},
   notify:    {ico:'!', rotulo:'Agente avisou',        cor:'var(--serious)'},
@@ -408,10 +434,11 @@ async function atualizar() {
     const d = await (await fetch('/api/state')).json();
     document.getElementById('date').textContent = new Date(d.replay.day_start).toLocaleDateString('pt-BR');
     document.getElementById('time').textContent = hora(d.replay.simulated_time);
+    document.getElementById('day').textContent = new Date(d.replay.simulated_time).toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', timeZone:'America/Sao_Paulo'});
     document.getElementById('speed').textContent = `${d.replay.speed}× · ${d.replay.status}`;
     document.getElementById('progress').style.width = `${(d.replay.progress*100).toFixed(1)}%`;
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
-    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d); comportamento(d);
+    desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d); comportamento(d); evidencias(d);
   } catch (erro) {
     document.getElementById('speed').textContent = 'sem resposta da API';
   }

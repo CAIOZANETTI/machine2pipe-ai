@@ -147,8 +147,16 @@ class FieldAgent:
         decisao = agent.decide(evento, briefing=briefing, tool_calls=registro.calls)
 
         # Uma pergunta de cada vez: duas perguntas abertas tornam a resposta ambigua e a
-        # confirmacao deixaria de poder apontar para um evento so.
-        if decisao.expects_reply and self.pending:
+        # confirmacao deixaria de poder apontar para um evento so. A excecao e o avanco sem
+        # confirmacao: e a pergunta que a demonstracao — e a obra — existe para fazer, e
+        # ela substitui qualquer pergunta menor que esteja esperando resposta.
+        if decisao.expects_reply and self.pending and self._supersedes(evento):
+            log.info(
+                "%s substitui a pergunta em aberto (%s)",
+                evento["event_id"],
+                self.pending.get("event_id"),
+            )
+        elif decisao.expects_reply and self.pending:
             log.info(
                 "pergunta ja aberta (%s); %s fica registrado sem perguntar",
                 self.pending.get("event_id"),
@@ -184,10 +192,18 @@ class FieldAgent:
                 with self.lock:
                     self.pending = {
                         "event_id": evento["event_id"],
+                        "event_type": evento.get("event_type"),
                         "message": decisao.message,
                         "segment_id": evento.get("segment_id"),
                     }
         return decisao
+
+    def _supersedes(self, evento: dict[str, Any]) -> bool:
+        pendente = self.pending or {}
+        return (
+            evento.get("event_type") == event_rules.PROGRESS_UNCONFIRMED
+            and pendente.get("event_type") != event_rules.PROGRESS_UNCONFIRMED
+        )
 
     # ---------------------------------------------------------------- Telegram
 
@@ -250,6 +266,45 @@ class FieldAgent:
                     "segment_id": colocacao.segment_id,
                 }
         return " ".join(p for p in partes if p)
+
+    def status(self) -> str:
+        """/status: que dia da obra esta em replay, o que a maquina faz e o que ja foi confirmado.
+
+        E a resposta a "que dia e hoje?": o replay reproduz um dia de 2022 como se fosse
+        agora, e o engenheiro precisa saber em que ponto dele a conversa esta.
+        """
+        agora = self.simulated_now()
+        relogio = replay.load()
+        inicio, fim = self.index.day_bounds
+        estado = {replay.RUNNING: "em andamento", replay.PAUSED: "pausado", replay.STOPPED: "parado"}
+        linhas = [
+            f"Replay do dia {agora:%d/%m/%Y}, {estado.get(relogio.status, relogio.status)} "
+            f"a {relogio.speed:g}x: {agora:%H:%M} na obra "
+            f"(jornada {inicio:%H:%M}–{fim:%H:%M})."
+        ]
+        if relogio.status == replay.STOPPED:
+            linhas.append("Nada aconteceu ainda: inicie o replay no painel.")
+        ate_aqui = activity.until(self.index.episodes, agora)
+        if ate_aqui:
+            atual = ate_aqui[-1]
+            linhas.append(f"Agora: {atual.describe()}.")
+            linhas.append(f"Até aqui: {activity.narrative(ate_aqui, brief=True)}.")
+        progresso = storage.confirmed_progress()
+        for segmento in self.index.project.segments:
+            planejado = float(segmento.attributes.get("planned_length_m") or 0)
+            confirmado = 0.0
+            if not progresso.empty and (progresso.segment_id == segmento.segment_id).any():
+                confirmado = float(progresso[progresso.segment_id == segmento.segment_id].iloc[0].confirmed_length_m)
+            linhas.append(
+                f"{segmento.segment_id}: {confirmado:.0f} m confirmados de {planejado:.0f} m projetados."
+            )
+        with self.lock:
+            pergunta = self.pending
+        if pergunta:
+            linhas.append(f"Pergunta em aberto: {pergunta.get('message')}")
+        else:
+            linhas.append("Nenhuma pergunta em aberto.")
+        return "\n".join(linhas)
 
     def on_text(self, message: dict[str, Any], text: str) -> str | None:
         """Resposta do engenheiro. So vira quantidade se houver pergunta em aberto."""
@@ -368,7 +423,7 @@ def main() -> None:
         polling = threading.Thread(
             target=bot.run,
             args=(_stop_event,),
-            kwargs={"on_photo": campo.on_photo, "on_text": campo.on_text},
+            kwargs={"on_photo": campo.on_photo, "on_text": campo.on_text, "on_status": campo.status},
             name="telegram",
             daemon=True,
         )

@@ -13,6 +13,7 @@ from machine2pipe.photos import PhotoStore, StoredPhoto
 log = logging.getLogger(__name__)
 PhotoHandler = Callable[[dict[str, Any], StoredPhoto], str | None]
 TextHandler = Callable[[dict[str, Any], str], str | None]
+StatusHandler = Callable[[], str]
 
 
 def parse_chat_allowlist(value: str) -> set[int]:
@@ -132,6 +133,7 @@ class TelegramBot:
         *,
         on_photo: PhotoHandler | None = None,
         on_text: TextHandler | None = None,
+        on_status: StatusHandler | None = None,
     ) -> None:
         message = update.get("message") or {}
         chat_id = (message.get("chat") or {}).get("id")
@@ -143,8 +145,17 @@ class TelegramBot:
         if text in {"/start", "/help"}:
             self.send_message(
                 chat_id,
-                "Machine2Pipe AI ativo. Envie fotos, observações ou /status. "
-                "Use /whoami para consultar o chat ID.",
+                "Machine2Pipe AI: agente de campo da obra de drenagem em Calmon/SC.\n\n"
+                "O que eu faço: acompanho a telemetria da retroescavadeira contra o projeto "
+                "e, quando ela trabalha num trecho sem quantidade confirmada, eu pergunto. "
+                "A quantidade é sempre sua; eu só registro.\n\n"
+                "Comandos:\n"
+                "/status — que dia e hora da obra estão em replay, o que a máquina está "
+                "fazendo agora, frentes do dia e metros confirmados\n"
+                "/whoami — seu chat ID\n\n"
+                "Envie uma foto: eu situo no trecho e na estaca pela telemetria, leio o que "
+                "aparece e guardo como evidência. Responda às minhas perguntas em texto "
+                "livre, com os metros executados ou o motivo da parada.",
             )
             return
         if text == "/whoami":
@@ -165,7 +176,10 @@ class TelegramBot:
                 log.warning("mensagem ignorada de chat nao autorizado: %s", chat_id)
             return
         if text == "/status":
-            self.send_message(chat_id, "Agente conectado; aguardando evidências de campo.")
+            self.send_message(
+                chat_id,
+                on_status() if on_status else "Agente conectado; aguardando evidências de campo.",
+            )
             return
 
         photo = self._store_photo(message)
@@ -193,6 +207,7 @@ class TelegramBot:
         *,
         on_photo: PhotoHandler | None = None,
         on_text: TextHandler | None = None,
+        on_status: StatusHandler | None = None,
         timeout: int = 25,
     ) -> None:
         data: dict[str, Any] = {"timeout": timeout, "allowed_updates": '["message"]'}
@@ -201,7 +216,7 @@ class TelegramBot:
         updates = self._call("getUpdates", **data) or []
         for update in updates:
             self.offset = int(update["update_id"]) + 1
-            self.dispatch(update, on_photo=on_photo, on_text=on_text)
+            self.dispatch(update, on_photo=on_photo, on_text=on_text, on_status=on_status)
 
     def run(
         self,
@@ -209,11 +224,12 @@ class TelegramBot:
         *,
         on_photo: PhotoHandler | None = None,
         on_text: TextHandler | None = None,
+        on_status: StatusHandler | None = None,
     ) -> None:
         log.info("Telegram long polling iniciado")
         while not stop_event.is_set():
             try:
-                self.poll_once(on_photo=on_photo, on_text=on_text)
+                self.poll_once(on_photo=on_photo, on_text=on_text, on_status=on_status)
             except requests.RequestException as exc:
                 log.warning("falha temporaria no Telegram: %s", exc)
                 stop_event.wait(5)
