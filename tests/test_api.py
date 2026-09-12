@@ -74,3 +74,14 @@ def test_health_denuncia_chat_id_nao_numerico(cliente, monkeypatch, valor, valid
 
     monkeypatch.setattr(api, "config", replace(api.config, telegram_chat_id=valor))
     assert cliente.get("/health").json()["telegram_allowlist_valid"] is valido
+
+
+def test_diagnostico_do_telegram_sem_token(cliente, monkeypatch):
+    from dataclasses import replace
+
+    from machine2pipe import api
+
+    monkeypatch.setattr(api, "config", replace(api.config, telegram_bot_token=""))
+    corpo = cliente.get("/api/telegram/check").json()
+    assert corpo["token_present"] is False
+    assert "ausente" in corpo["diagnosis"]

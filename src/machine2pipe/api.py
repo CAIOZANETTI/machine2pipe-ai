@@ -10,6 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -122,6 +123,46 @@ def _segments_payload(project) -> list[dict]:
         }
         for segment in project.segments
     ]
+
+
+@app.get("/api/telegram/check")
+def telegram_check() -> JSONResponse:
+    """Pergunta ao proprio Telegram por que o bot esta mudo, sem revelar o token.
+
+    Separa as tres causas que de fora sao identicas: token recusado, webhook registrado
+    (que faz o long polling nunca receber nada) e worker que nem chegou a consultar.
+    `getMe` e `getWebhookInfo` sao leituras e nao consomem atualizacao nenhuma.
+    """
+    if not config.telegram_bot_token:
+        return JSONResponse({"token_present": False,
+                             "diagnosis": "TELEGRAM_BOT_TOKEN ausente no container"})
+
+    base = f"https://api.telegram.org/bot{config.telegram_bot_token}"
+    resultado: dict[str, object] = {"token_present": True}
+    try:
+        me = requests.get(f"{base}/getMe", timeout=15).json()
+        resultado["token_accepted"] = bool(me.get("ok"))
+        if me.get("ok"):
+            resultado["bot_username"] = me["result"].get("username")
+        else:
+            resultado["telegram_error"] = me.get("description")
+            resultado["diagnosis"] = "o Telegram recusou o token: provavelmente revogado ou copiado pela metade"
+            return JSONResponse(resultado)
+
+        hook = requests.get(f"{base}/getWebhookInfo", timeout=15).json()
+        info = hook.get("result") or {}
+        url = info.get("url") or ""
+        resultado["webhook_url"] = url or None
+        resultado["pending_updates"] = info.get("pending_update_count")
+        resultado["last_error"] = info.get("last_error_message")
+        resultado["diagnosis"] = (
+            "ha um webhook registrado: enquanto ele existir o long polling nunca recebe nada"
+            if url
+            else "token valido e sem webhook; se o bot segue mudo o worker nao esta consultando"
+        )
+    except requests.RequestException as erro:
+        resultado["diagnosis"] = f"nao foi possivel falar com a API do Telegram: {erro}"
+    return JSONResponse(resultado)
 
 
 @app.get("/api/photo/{photo_id}")
