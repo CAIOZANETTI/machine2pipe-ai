@@ -105,3 +105,18 @@ def test_diagnostico_descreve_a_forma_do_token(cliente, monkeypatch, token, form
     corpo = cliente.get("/api/telegram/check").json()
     assert corpo["token_shape_valid"] is forma_valida
     assert token not in str(corpo), "o token nunca pode aparecer na resposta"
+
+
+def test_diagnostico_reconhece_token_entre_aspas(cliente, monkeypatch):
+    from dataclasses import replace
+
+    from machine2pipe import api
+
+    monkeypatch.setattr(
+        api, "config",
+        replace(api.config, telegram_bot_token='"8847159810:AAG4g46DXI4u7ZyyAdlLrlPeL0WKjy18FwU"'),
+    )
+    corpo = cliente.get("/api/telegram/check").json()
+    assert corpo["token_looks_quoted"] is True
+    assert corpo["token_length"] == 48
+    assert "aspas" in corpo["diagnosis"]

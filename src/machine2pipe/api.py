@@ -152,8 +152,16 @@ def telegram_check() -> JSONResponse:
         "token_had_surrounding_whitespace": bruto != token,
     }
     if not forma:
+        aspas = len(token) > 1 and token[0] == token[-1] and token[0] in "\"'`"
+        resultado["token_looks_quoted"] = aspas
+        resultado["unexpected_characters"] = sorted(
+            {c for c in token if not (c.isalnum() or c in ":_-")}
+        )
         resultado["diagnosis"] = (
-            "o valor nao tem a forma de um token: esperado numero, dois-pontos e 35 caracteres"
+            "o valor esta entre aspas: grave sem aspas no Railway"
+            if aspas
+            else "o valor nao tem a forma de um token: esperado numero, dois-pontos e "
+                 f"35 caracteres, e chegaram {len(token)} caracteres"
         )
         return JSONResponse(resultado)
 
