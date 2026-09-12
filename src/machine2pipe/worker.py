@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import logging
 import signal
-import time
+import threading
 
 from machine2pipe.config import config
+from machine2pipe.photos import PhotoStore
+from machine2pipe.telegram_bot import TelegramBot, parse_chat_allowlist
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,13 +19,12 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-_running = True
+_stop_event = threading.Event()
 
 
 def _stop(signum, _frame):
-    global _running
     log.info("sinal %s recebido, encerrando", signum)
-    _running = False
+    _stop_event.set()
 
 
 def main() -> None:
@@ -37,11 +38,17 @@ def main() -> None:
         config.replay_speed,
         config.corridor_m,
     )
-    if not config.telegram_bot_token:
+    if config.telegram_bot_token:
+        bot = TelegramBot(
+            config.telegram_bot_token,
+            photo_store=PhotoStore(config.photo_storage_path),
+            allowed_chat_ids=parse_chat_allowlist(config.telegram_chat_id),
+        )
+        bot.run(_stop_event)
+    else:
         log.warning("TELEGRAM_BOT_TOKEN ausente: long polling desativado nesta execucao")
-
-    while _running:
-        time.sleep(15)
+        while not _stop_event.wait(15):
+            log.debug("heartbeat")
     log.info("worker encerrado")
 
 
