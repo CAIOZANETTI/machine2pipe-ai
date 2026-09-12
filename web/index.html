@@ -147,7 +147,7 @@ footer { margin-top: 22px; font-size: 12px; color: var(--text-muted); max-width:
     </select>
     <button onclick="enquadrar()" title="Volta o mapa para o traçado do projeto">⌖ Enquadrar</button>
     <button onclick="toggleTheme()">◐ Tema</button>
-    <div class="clock"><small id="day" style="margin-right:8px"></small><b id="time">--:--</b><small id="speed"></small></div>
+    <div class="clock"><small id="day" style="margin-right:8px"></small><b id="time">--:--</b><small id="speed">conectando ao serviço…</small></div>
     <div class="bar-time" style="flex-basis:100%"><i id="progress"></i></div>
     <div class="moments" id="moments" title="Clique num marcador para ir àquele instante"></div>
   </div>
@@ -524,7 +524,9 @@ async function atualizar() {
     document.getElementById('corridor').textContent = `Corredor do projeto: ${d.corridor_m} m`;
     desenharProjeto(d); desenharMaquina(d); desenharFotos(d); indicadores(d); linhaDoTempo(d); trechos(d); conversa(d); comportamento(d); evidencias(d);
   } catch (erro) {
-    document.getElementById('speed').textContent = 'sem resposta da API';
+    // Logo apos um deploy a API leva 20 a 40 s carregando a telemetria: a pagina fica
+    // vazia nesse intervalo, e sem esta frase parece quebrada em vez de acordando.
+    document.getElementById('speed').textContent = 'serviço iniciando… tentando de novo';
   }
 }
 

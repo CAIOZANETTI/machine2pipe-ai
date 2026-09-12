@@ -267,6 +267,27 @@ def photo(photo_id: str) -> FileResponse:
     return FileResponse(caminho, media_type="image/jpeg")
 
 
+def _json_safe(value):
+    """NaN e infinito nao existem em JSON, e o Starlette recusa serializa-los.
+
+    Uma foto sem EXIF fora do corredor chega do SQLite com chainage_m e confidence NaN; no
+    dia em que a primeira dessas entrou pelo Telegram, /api/state passou a responder 500 e
+    o painel inteiro ficou em branco. Tudo o que sai daqui passa por esta limpeza.
+    """
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+        return None
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):  # numpy escalar
+        try:
+            return _json_safe(value.item())
+        except (TypeError, ValueError):
+            return value
+    return value
+
+
 @app.get("/api/state")
 def state() -> JSONResponse:
     project, matched, detected = _day()
@@ -290,7 +311,7 @@ def state() -> JSONResponse:
     clock = replay.load()
 
     return JSONResponse(
-        {
+        _json_safe({
             "replay": {
                 "status": clock.status,
                 "speed": clock.speed,
@@ -351,7 +372,7 @@ def state() -> JSONResponse:
             "activity": activity.summary(
                 activity.attach_photos(activity.until(_episodes(), now), photos)
             ),
-        }
+        })
     )
 
 
@@ -403,8 +424,8 @@ def pending() -> JSONResponse:
     _, matched, _ = _day()
     now = replay.simulated_now(matched.timestamp.iloc[0], matched.timestamp.iloc[-1])
     frame = storage.pending_events(until=now.isoformat())
-    return JSONResponse({"simulated_time": now.isoformat(), "count": int(len(frame)),
-                         "events": frame.to_dict("records")})
+    return JSONResponse(_json_safe({"simulated_time": now.isoformat(), "count": int(len(frame)),
+                                    "events": frame.to_dict("records")}))
 
 
 @app.post("/api/replay/seek")
