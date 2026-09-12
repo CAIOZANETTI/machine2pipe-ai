@@ -323,6 +323,7 @@ class FieldAgent:
             progresso[["segment_id", "confirmed_length_m", "confirmations"]].to_dict("records")
             if not progresso.empty else []
         )
+        fotos = storage.photos_frame()
         with self.lock:
             pergunta = self.pending
         return {
@@ -338,8 +339,20 @@ class FieldAgent:
             "agora": ate_aqui[-1].describe() if ate_aqui else "nada ainda",
             "horas_por_estado": resumo["hours"],
             "frentes_de_servico": [f["summary"] for f in resumo["fronts"] if f["minutes"] >= 5],
-            "fotos_arquivadas": int(len(storage.photos_frame())),
+            "fotos_arquivadas": int(len(fotos)),
+            # O que o modelo viu em cada foto, para "o que tinha na foto?" ter resposta.
+            "fotos_recentes": [
+                {"quando": str(f.captured_at)[:16].replace("T", " "), "trecho": f.segment_id,
+                 "estaca_m": None if pd.isna(f.chainage_m) else round(float(f.chainage_m)),
+                 "leitura": f.visual_class, "confianca": None if pd.isna(f.confidence) else float(f.confidence),
+                 "resumo": f.visual_summary if "visual_summary" in fotos.columns and isinstance(f.visual_summary, str) else None,
+                 "origem": f.source}
+                for f in fotos.tail(5).itertuples()
+            ],
             "confirmado": confirmado,
+            # Reanalise historica, nao previsao: "vai chover hoje?" tem resposta porque o
+            # "hoje" e 28/06/2022 e o Open-Meteo sabe o que caiu naquele dia.
+            "clima_do_dia": self.index.weather_of(agora.date()),
             "pergunta_em_aberto": (pergunta or {}).get("message"),
         }
 
@@ -369,7 +382,10 @@ class FieldAgent:
         dia = self._day_in(text)
         if not dia or dia == pd.Timestamp(config.replay_date).date():
             return None
-        return self.index.read_day(dia)
+        leitura = dict(self.index.read_day(dia))
+        if leitura.get("telemetry_points"):
+            leitura["weather"] = self.index.weather_of(dia)
+        return leitura
 
     def on_text(self, message: dict[str, Any], text: str) -> str | None:
         """Texto do engenheiro: resposta a pergunta em aberto, ou conversa livre.

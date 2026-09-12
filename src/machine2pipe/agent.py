@@ -321,6 +321,8 @@ Regras que nao se negociam:
 - Se a pergunta pedir algo que o contexto nao tem, diga que nao tem e o que voce tem.
 - Se houver pergunta em aberto, lembre-a ao final em uma frase.
 - O "hoje" do engenheiro e o dia do replay, nao a data real.
+- "clima_do_dia" e reanalise historica (Open-Meteo), nao previsao: responda com o que caiu
+  naquele dia (mm e temperaturas) e diga que e reanalise de grade, nao pluviometro na obra.
 - Se o contexto trouxer "outro_dia_citado", o engenheiro perguntou por aquele dia: responda
   com a leitura daquele dia (horas por estado, frentes, pontos no corredor), e diga
   claramente quando a maquina nao entrou no corredor do projeto."""
