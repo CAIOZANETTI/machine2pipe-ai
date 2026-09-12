@@ -70,9 +70,23 @@ def health() -> dict[str, object]:
     """
     photos = storage.photos_frame()
     events_recorded = storage.events_frame()
+    esperadas = [
+        "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DATABASE_PATH", "PHOTO_STORAGE_PATH",
+        "OPENAI_API_KEY", "OPENROUTER_API_KEY", "LLM_MODEL", "EXA_API_KEY",
+    ]
     return {
         "status": "ok",
         "replay_date": config.replay_date,
+        # Qual servico, ambiente e commit estao realmente servindo. Variavel cadastrada
+        # noutro servico, ou alteracao que ficou em staging, aparece como ausencia aqui.
+        "deployment": {
+            "service": os.getenv("RAILWAY_SERVICE_NAME"),
+            "environment": os.getenv("RAILWAY_ENVIRONMENT_NAME"),
+            "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "")[:7] or None,
+            "branch": os.getenv("RAILWAY_GIT_BRANCH"),
+        },
+        "variables_present": [nome for nome in esperadas if os.getenv(nome)],
+        "variables_missing": [nome for nome in esperadas if not os.getenv(nome)],
         "telegram_token_configured": bool(config.telegram_bot_token),
         "telegram_allowlist_configured": bool(config.telegram_chat_id),
         "model_key_configured": bool(os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")),
