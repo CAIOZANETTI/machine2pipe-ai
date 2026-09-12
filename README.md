@@ -415,6 +415,46 @@ real Parquet + KML/KMZ + photo → matched project segment → deterministic eve
 → agent decision → Telegram question → engineer reply → confirmed record → dashboard update
 ```
 
+## V2 — Production platform
+
+The hackathon proves the workflow with one real JCB 3CX dataset. V2 generalizes the same engineering core for company use.
+
+### Multi-machine support
+
+- backhoe loaders;
+- excavators and mini excavators;
+- wheel loaders;
+- dozers and other earthmoving equipment;
+- trucks and support vehicles.
+
+### Vendor-neutral telemetry
+
+Each manufacturer or tracking provider receives an adapter that converts its feed into the canonical Machine2Pipe schema. Planned adapters include JCB, Caterpillar, Komatsu, and generic GPS/CSV/API sources.
+
+```text
+OEM feed, GPS tracker, CSV or API
+              ↓
+       telemetry adapter
+              ↓
+   canonical Machine2Pipe events
+```
+
+The engineering engine, project matching, Telegram workflow, and dashboard remain independent of the equipment brand.
+
+### Company-ready capabilities
+
+- multiple projects, machines, users, and contractors;
+- live API, webhook, or scheduled telemetry ingestion;
+- equipment-class-specific operational rules;
+- PostgreSQL and object storage instead of a single SQLite file;
+- access control and project-level permissions;
+- auditable history of photos, alerts, confirmations, and changes;
+- planned-versus-confirmed production reports;
+- configurable dashboards and exports for management;
+- connectors for corporate scheduling, ERP, and document systems.
+
+V2 remains decision support. It does not remotely command equipment.
+
 ## Critical limitations
 
 - GPS proximity does not prove installed pipe.
