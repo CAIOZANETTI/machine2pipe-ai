@@ -337,3 +337,15 @@ def test_clima_do_dia_entra_no_contexto(campo, monkeypatch):
     assert clima["available"] and clima["rained"] is False
     assert clima["rain_mm"] == 0.0 and clima["temperature_max_c"] == 19.0
     assert "reanálise" in clima["note"]
+
+
+def test_retirar_uma_foto_apaga_so_ela(banco, tmp_path):
+    arquivo = tmp_path / "errada.jpg"
+    arquivo.write_bytes(b"x")
+    storage.record_photo({"photo_id": "telegram_errada", "source": "telegram",
+                          "captured_at": "2022-06-28T15:27:00-03:00", "file_path": str(arquivo)})
+    storage.record_photo({"photo_id": "album_x", "source": "album", "captured_at": "2022-06-28T12:59:00-03:00"})
+
+    assert storage.delete_photo("telegram_errada") == str(arquivo)
+    assert list(storage.photos_frame().photo_id) == ["album_x"]
+    assert storage.delete_photo("telegram_errada") is None, "apagar de novo nao inventa foto"

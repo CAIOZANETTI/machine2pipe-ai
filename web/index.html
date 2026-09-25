@@ -396,7 +396,8 @@ function evidencias(d) {
       : `sem leitura visual <button onclick="event.stopPropagation(); lerFoto('${f.photo_id}', this)">🔎 Ler com o modelo</button>`;
     const prova = frente ? `<span class="tag">evidência de execução · frente ${hora(frente.start)}–${hora(frente.end)}</span>` : '';
     return `<figure class="link" onclick="irPara('${f.captured_at}')" title="Ir para o instante da foto"><img src="/api/photo/${f.photo_id}" loading="lazy" alt="">
-      <figcaption><b>${hora(f.captured_at)}</b> · ${onde}<br>${leitura}<br>${prova}</figcaption></figure>`;
+      <figcaption><b>${hora(f.captured_at)}</b> · ${onde}<br>${leitura}<br>${prova}
+      <button onclick="event.stopPropagation(); retirarFoto('${f.photo_id}', this)" title="Retira a foto da evidência e apaga o arquivo">🗑 Retirar</button></figcaption></figure>`;
   }).join('') + '</div>';
 }
 
@@ -501,6 +502,14 @@ async function lerFoto(id, botao) {
   botao.disabled = true; botao.textContent = 'lendo…';
   const r = await fetch(`/api/photo/${id}/read`, {method:'POST'});
   if (!r.ok) { botao.textContent = 'falhou: ' + ((await r.json()).detail || r.status); return; }
+  atualizar();
+}
+async function retirarFoto(id, botao) {
+  if (!confirm('Retirar esta foto da evidência? O arquivo é apagado do servidor.')) return;
+  botao.disabled = true; botao.textContent = 'retirando…';
+  const r = await fetch(`/api/photo/${id}`, {method:'DELETE'});
+  if (!r.ok) { botao.textContent = 'falhou: ' + ((await r.json()).detail || r.status); return; }
+  document.getElementById('evidence').innerHTML = '<div class="empty">Foto retirada.</div>';
   atualizar();
 }
 

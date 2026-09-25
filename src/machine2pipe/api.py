@@ -267,6 +267,22 @@ def photo(photo_id: str) -> FileResponse:
     return FileResponse(caminho, media_type="image/jpeg")
 
 
+@app.delete("/api/photo/{photo_id}")
+def remove_photo(photo_id: str) -> dict:
+    """Retira a foto da evidencia e apaga o arquivo do volume. Foto que nao e da obra sai."""
+    caminho = storage.delete_photo(photo_id)
+    if caminho is None:
+        raise HTTPException(404, f"foto desconhecida: {photo_id}")
+    arquivo_apagado = False
+    if caminho:
+        try:
+            Path(caminho).unlink(missing_ok=True)
+            arquivo_apagado = True
+        except OSError:
+            pass  # o registro ja saiu; um arquivo orfao no volume nao aparece no painel
+    return {"removed": photo_id, "file_deleted": arquivo_apagado}
+
+
 def _json_safe(value):
     """NaN e infinito nao existem em JSON, e o Starlette recusa serializa-los.
 

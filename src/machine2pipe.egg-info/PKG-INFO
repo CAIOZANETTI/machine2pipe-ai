@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: machine2pipe
+Version: 0.1.0
+Summary: AI field engineer connecting pipe design, machine telemetry and the engineer through Telegram
+Requires-Python: >=3.11
