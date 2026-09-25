@@ -174,6 +174,22 @@ def update_photo_reading(
         )
 
 
+def delete_photo(photo_id: str, database_path: Path | None = None) -> str | None:
+    """Retira uma foto da evidencia e devolve o caminho do arquivo, ou None se nao existia.
+
+    Existe para a foto errada que chegou pelo Telegram: sem ela, a unica saida era zerar a
+    conversa inteira. Uma foto do album volta no proximo deploy, porque a carga e refeita.
+    """
+    with connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT file_path FROM photo_evidence WHERE photo_id = ?", (photo_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        connection.execute("DELETE FROM photo_evidence WHERE photo_id = ?", (photo_id,))
+    return row["file_path"] or ""
+
+
 def record_confirmation(
     *,
     segment_id: str,

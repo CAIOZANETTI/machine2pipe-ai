@@ -13,3 +13,4 @@ data/output/*
 .ipynb_checkpoints/
 .DS_Store
 data/replay_state.json
+*.egg-info/

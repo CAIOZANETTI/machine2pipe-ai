@@ -181,3 +181,7 @@ def test_foto_sem_estaca_nem_leitura_nao_derruba_o_painel(cliente, tmp_path):
     fotos = [f for f in resposta.json()["all_photos"] if f["photo_id"] == "telegram_sem_nada"]
     assert fotos, "a foto entra no payload, com os campos vazios como null"
     assert "NaN" not in resposta.text
+
+
+def test_retirar_foto_inexistente_falha_visivelmente(cliente):
+    assert cliente.delete("/api/photo/telegram_inexistente").status_code == 404
